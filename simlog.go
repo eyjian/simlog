@@ -2,9 +2,12 @@
 // 轻量级支持按大小滚动和多进程的日志
 //
 // 最简使用步骤：
-// var mylog simlog.SimLogger // 1）定义日志对象
-// mylog.Init() // 2）使用之前必须先初始化（如果存在log目录，则日志文件放在log目录，否则放在程序文件的同目录）
-// mylog.Infof("%s\n", "hello world") // 3）记录INFO级别日志
+// var mylog simlog.SimLogger
+// 1）定义日志对象
+// mylog.Init()
+// 2）使用之前必须先初始化（如果存在log目录，则日志文件放在log目录，否则放在程序文件的同目录）
+// mylog.Infof("%s\n", "hello world")
+// 3）记录INFO级别日志
 //
 // 注意：
 // 1）默认不记录源代码文件名和行号，因为记录源代码文件和行号可能影响性能，如需要可调用EnableLogCaller(true)打开
@@ -52,13 +55,13 @@ type SimLogger struct {
 func (this* SimLogger) Init() bool {
     this.logCaller = false
     this.printScreen = false
-	this.enableTraceLog = false
+    this.enableTraceLog = false
     this.skip = 3
 
-	this.logLevel = LL_INFO
+    this.logLevel = LL_INFO
     this.logFilename = GetLogFilename("")
     this.logDir = GetLogDir()
-	this.logFileSize = 1024 * 1024 * 100
+    this.logFileSize = 1024 * 1024 * 100
     this.logNumBackups = 10
     return true
 }
