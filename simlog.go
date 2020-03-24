@@ -43,6 +43,7 @@ type SimLogger struct {
     logCaller bool // 是否记录调用者（在go中取源代码文件名和行号有性能影响，所以默认是关闭的）
     printScreen bool // 是否屏幕打印（默认为false）
     enableTraceLog bool // 是否开启跟踪日志，不能通过logLevel来控制跟踪日志
+    enableLineFeed bool // 是否自动换行（默认为false，即不自动换行）
     logLevel LogLevel // 日志级别（默认为LL_INFO）
     logFileSize int64 // 单个日志文件大小（参考值，实际可能超出，默认为100M）
     logNumBackups int // 日志文件备份数（默认为包括当前的在内的共10个）
@@ -56,6 +57,7 @@ func (this* SimLogger) Init() bool {
     this.logCaller = false
     this.printScreen = false
     this.enableTraceLog = false
+    this.enableLineFeed = false
     this.skip = 3
 
     this.logLevel = LL_INFO
@@ -90,6 +92,10 @@ func (this* SimLogger) EnablePrintScreen(enabled bool) {
 
 func (this* SimLogger) EnableTraceLog(enabled bool) {
     this.enableTraceLog = enabled
+}
+
+func (this* SimLogger) EnableLineFeed(enabled bool) {
+    this.enableLineFeed = enabled
 }
 
 // 设置日志级别
@@ -202,7 +208,11 @@ func (this* SimLogger) logf(logLevel LogLevel, file string, line int, format str
     logLineHeader := this.formatLogLineHeader(logLevel, file, line)
     // 日志打屏
     if this.printScreen {
-        fmt.Printf(logLineHeader+format, a ...)
+        if this.enableLineFeed {
+            fmt.Printf(logLineHeader+format+"\n", a ...)
+        } else {
+            fmt.Printf(logLineHeader+format, a ...)
+        }
     }
 
     // 日志写文件
@@ -215,7 +225,11 @@ func (this* SimLogger) logf(logLevel LogLevel, file string, line int, format str
         if err == nil {
             logFileSize := fi.Size()
 
-            f.WriteString(fmt.Sprintf(logLineHeader+format, a ...))
+            if this.enableLineFeed {
+                f.WriteString(fmt.Sprintf(logLineHeader+format+"\n", a ...))
+            } else {
+                f.WriteString(fmt.Sprintf(logLineHeader+format, a ...))
+            }
             if logFileSize >= this.logFileSize {
                 this.rotateLog(cur_filepath, f)
             }
