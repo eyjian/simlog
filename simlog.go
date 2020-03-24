@@ -2,12 +2,12 @@
 // 轻量级支持按大小滚动和多进程的日志
 //
 // 最简使用步骤：
-// var mylog simlog.SimLogger
 // 1）定义日志对象
+// var mylog simlog.SimLogger
+// 2）使用之前必须调用Init初始化（如果存在log目录，则日志文件放在log目录，否则放在程序文件的同目录）
 // mylog.Init()
-// 2）使用之前必须先初始化（如果存在log目录，则日志文件放在log目录，否则放在程序文件的同目录）
-// mylog.Infof("%s\n", "hello world")
 // 3）记录INFO级别日志
+// mylog.Infof("%s\n", "hello world")
 //
 // 注意：
 // 1）默认不记录源代码文件名和行号，因为记录源代码文件和行号可能影响性能，如需要可调用EnableLogCaller(true)打开
@@ -31,7 +31,7 @@ const (
     LL_ERROR LogLevel = 1
     LL_WARNING LogLevel = 2
     LL_NOTICE LogLevel = 3
-    LL_INFO LogLevel = 4
+    LL_INFO LogLevel = 4 // 默认日志级别
     LL_DEBUG LogLevel = 5
     LL_DETAIL LogLevel = 6 // 比DEBUG更详细的级别
     LL_TRACE LogLevel = 7 // 跟踪日志，独立的日志级别
@@ -78,22 +78,30 @@ func (this* SimLogger) SetLogFilename(logFilename string) {
     this.logFilename = logFilename
 }
 
+// 调用者所在跳，
+// 如果直接使用SimLogger的写日志函数，则默认值3即可，
+// 否则每包一层skip值就得加一，否则将不能正确显示源代码文件名和行号。
 func (this* SimLogger) SetSkip(skip int) {
     this.skip = skip
 }
 
+// enabled为true表示是否记录源代码文件和行号
 func (this* SimLogger) EnableLogCaller(enabled bool) {
     this.logCaller = enabled
 }
 
+// enabled为true表示日志打屏
 func (this* SimLogger) EnablePrintScreen(enabled bool) {
     this.printScreen = enabled
 }
 
+// enabled为true表示开启跟踪日志，
+// 注意SetLogLevel不能控制跟踪日志的开启。
 func (this* SimLogger) EnableTraceLog(enabled bool) {
     this.enableTraceLog = enabled
 }
 
+// 是否自动换行，enabled为true表示开启自动换行
 func (this* SimLogger) EnableLineFeed(enabled bool) {
     this.enableLineFeed = enabled
 }
@@ -113,10 +121,12 @@ func (this* SimLogger) SetNumBackups(logNumBackups int) {
     this.logNumBackups = logNumBackups
 }
 
+// 写裸日志
 func (this* SimLogger) Rawf(format string, a ...interface{}) {
     //　TODO
 }
 
+// 写跟踪日志
 func (this* SimLogger) Tracef(format string, a ...interface{}) {
     if this.enableTraceLog {
         file, line := this.getCaller()
@@ -124,6 +134,7 @@ func (this* SimLogger) Tracef(format string, a ...interface{}) {
     }
 }
 
+// 写详细日志
 func (this* SimLogger) Detailf(format string, a ...interface{}) {
     if this.logLevel >= LL_DETAIL {
         file, line := this.getCaller()
@@ -131,6 +142,7 @@ func (this* SimLogger) Detailf(format string, a ...interface{}) {
     }
 }
 
+// 写调试日志
 func (this* SimLogger) Debugf(format string, a ...interface{}) {
     if this.logLevel >= LL_DEBUG {
         file, line := this.getCaller()
@@ -138,6 +150,7 @@ func (this* SimLogger) Debugf(format string, a ...interface{}) {
     }
 }
 
+// 写信息日志
 func (this* SimLogger) Infof(format string, a ...interface{}) {
     if this.logLevel >= LL_INFO {
         file, line := this.getCaller()
@@ -145,6 +158,7 @@ func (this* SimLogger) Infof(format string, a ...interface{}) {
     }
 }
 
+// 写注意日志
 func (this* SimLogger) Noticef(format string, a ...interface{}) {
     if this.logLevel >= LL_NOTICE {
         file, line := this.getCaller()
@@ -152,6 +166,7 @@ func (this* SimLogger) Noticef(format string, a ...interface{}) {
     }
 }
 
+// 写警示日志
 func (this* SimLogger) Warningf(format string, a ...interface{}) {
     if this.logLevel >= LL_WARNING {
         file, line := this.getCaller()
@@ -159,6 +174,7 @@ func (this* SimLogger) Warningf(format string, a ...interface{}) {
     }
 }
 
+// 写错误日志
 func (this* SimLogger) Errorf(format string, a ...interface{}) {
     if this.logLevel >= LL_ERROR {
         file, line := this.getCaller()
@@ -166,6 +182,8 @@ func (this* SimLogger) Errorf(format string, a ...interface{}) {
     }
 }
 
+// 写致命错误日志，
+// 注意在调用后进程会退出。
 func (this* SimLogger) Fatalf(format string, a ...interface{}) {
     if this.logLevel >= LL_FATAL {
         file, line := this.getCaller()
