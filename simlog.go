@@ -266,15 +266,15 @@ func GetFileSize(filepath string) (int64, error) {
 // 根据日志级别得到对应级别名
 func GetLogLevelName(logLevel LogLevel) string {
     logLevelNameArray := [...]string{
-        "RAW",
-        "TRACE",
-        "DETAIL",
-        "DEBUG",
-        "INFO",
-        "NOTICE",
-        "WARNING",
+        "FATAL",
         "ERROR",
-        "FATAL" }
+        "WARNING",
+        "NOTICE",
+        "INFO",
+        "DEBUG",
+        "DETAIL",
+        "TRACE",
+        "RAW" }
     return logLevelNameArray[int(logLevel)]
 }
 
