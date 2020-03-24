@@ -48,11 +48,19 @@ type SimLogger struct {
     logFileSize int64 // 单个日志文件大小（参考值，实际可能超出，默认为100M）
     logNumBackups int // 日志文件备份数（默认为包括当前的在内的共10个）
     logFilename string // 日志文件名（不包含目录部分）
-    logDir string // 日志目录（不包含文件名部分）
+    logDir string // 日志目录（不包含文件名部分）、
+    subSuffix string // 日志文件名子后缀：filename.SUBSUFFIX.log，默认为空表示无子后缀
     skip int // 源代码所在跳（默认为3，但如果有对SimLogger包装调用，则包装一层应当设置为4，包装两层设置为5，依次类推）
 }
 
-// Init应在SimLogger所有其它成员被调用之前调用
+// 设置日志文件名子后缀，
+// 只在在使用默认的日志文件名进才有效，并且SetSubSuffix必须在Init之前调用才有效
+func (this* SimLogger) SetSubSuffix(subSuffix string) {
+    this.subSuffix = subSuffix
+}
+
+// Init应在SimLogger所有其它成员被调用之前调用，
+// SetSubSuffix成员除外，SetSubSuffix只有在Init之前调用才有效。
 func (this* SimLogger) Init() bool {
     this.logCaller = false
     this.printScreen = false
@@ -61,7 +69,7 @@ func (this* SimLogger) Init() bool {
     this.skip = 3
 
     this.logLevel = LL_INFO
-    this.logFilename = GetLogFilename("")
+    this.logFilename = GetLogFilename(this.subSuffix)
     this.logDir = GetLogDir()
     this.logFileSize = 1024 * 1024 * 100
     this.logNumBackups = 10
