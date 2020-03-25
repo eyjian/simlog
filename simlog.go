@@ -135,6 +135,21 @@ func (this* SimLogger) Rawf(format string, a ...interface{}) {
 }
 
 // 写跟踪日志
+
+func (this* SimLogger) Trace(a ...interface{}) {
+    if this.enableTraceLog {
+        file, line := this.getCaller()
+        this.log(LL_TRACE, file, line, a...)
+    }
+}
+
+func (this* SimLogger) Traceln(format string, a ...interface{}) {
+    if this.enableTraceLog {
+        file, line := this.getCaller()
+        this.logln(LL_TRACE, file, line, a...)
+    }
+}
+
 func (this* SimLogger) Tracef(format string, a ...interface{}) {
     if this.enableTraceLog {
         file, line := this.getCaller()
@@ -143,6 +158,21 @@ func (this* SimLogger) Tracef(format string, a ...interface{}) {
 }
 
 // 写详细日志
+
+func (this* SimLogger) Detail(a ...interface{}) {
+    if this.logLevel >= LL_DETAIL {
+        file, line := this.getCaller()
+        this.log(LL_DETAIL, file, line, a...)
+    }
+}
+
+func (this* SimLogger) Detailln(a ...interface{}) {
+    if this.logLevel >= LL_DETAIL {
+        file, line := this.getCaller()
+        this.logln(LL_DETAIL, file, line, a...)
+    }
+}
+
 func (this* SimLogger) Detailf(format string, a ...interface{}) {
     if this.logLevel >= LL_DETAIL {
         file, line := this.getCaller()
@@ -151,6 +181,21 @@ func (this* SimLogger) Detailf(format string, a ...interface{}) {
 }
 
 // 写调试日志
+
+func (this* SimLogger) Debug(a ...interface{}) {
+    if this.logLevel >= LL_DEBUG {
+        file, line := this.getCaller()
+        this.log(LL_DEBUG, file, line, a...)
+    }
+}
+
+func (this* SimLogger) Debugln(a ...interface{}) {
+    if this.logLevel >= LL_DEBUG {
+        file, line := this.getCaller()
+        this.logln(LL_DEBUG, file, line, a...)
+    }
+}
+
 func (this* SimLogger) Debugf(format string, a ...interface{}) {
     if this.logLevel >= LL_DEBUG {
         file, line := this.getCaller()
@@ -159,6 +204,21 @@ func (this* SimLogger) Debugf(format string, a ...interface{}) {
 }
 
 // 写信息日志
+
+func (this *SimLogger) Info(a ...interface{}) {
+    if this.logLevel >= LL_INFO {
+        file, line := this.getCaller()
+        this.log(LL_INFO, file, line, a ...)
+    }
+}
+
+func (this *SimLogger) Infoln(a ...interface{}) {
+    if this.logLevel >= LL_INFO {
+        file, line := this.getCaller()
+        this.logln(LL_INFO, file, line, a ...)
+    }
+}
+
 func (this* SimLogger) Infof(format string, a ...interface{}) {
     if this.logLevel >= LL_INFO {
         file, line := this.getCaller()
@@ -167,6 +227,21 @@ func (this* SimLogger) Infof(format string, a ...interface{}) {
 }
 
 // 写注意日志
+
+func (this* SimLogger) Notice(a ...interface{}) {
+    if this.logLevel >= LL_NOTICE {
+        file, line := this.getCaller()
+        this.log(LL_NOTICE, file, line, a...)
+    }
+}
+
+func (this* SimLogger) Noticeln(a ...interface{}) {
+    if this.logLevel >= LL_NOTICE {
+        file, line := this.getCaller()
+        this.logln(LL_NOTICE, file, line, a...)
+    }
+}
+
 func (this* SimLogger) Noticef(format string, a ...interface{}) {
     if this.logLevel >= LL_NOTICE {
         file, line := this.getCaller()
@@ -175,6 +250,21 @@ func (this* SimLogger) Noticef(format string, a ...interface{}) {
 }
 
 // 写警示日志
+
+func (this *SimLogger) Warning(a ...interface{}) {
+    if this.logLevel >= LL_WARNING {
+        file, line := this.getCaller()
+        this.log(LL_WARNING, file, line, a...)
+    }
+}
+
+func (this *SimLogger) Warningln(a ...interface{}) {
+    if this.logLevel >= LL_WARNING {
+        file, line := this.getCaller()
+        this.logln(LL_WARNING, file, line, a...)
+    }
+}
+
 func (this* SimLogger) Warningf(format string, a ...interface{}) {
     if this.logLevel >= LL_WARNING {
         file, line := this.getCaller()
@@ -183,6 +273,21 @@ func (this* SimLogger) Warningf(format string, a ...interface{}) {
 }
 
 // 写错误日志
+
+func (this *SimLogger) Error(a ...interface{}) {
+    if this.logLevel >= LL_ERROR {
+        file, line := this.getCaller()
+        this.log(LL_ERROR, file, line, a...)
+    }
+}
+
+func (this *SimLogger) Errorln(a ...interface{}) {
+    if this.logLevel >= LL_ERROR {
+        file, line := this.getCaller()
+        this.logln(LL_ERROR, file, line, a...)
+    }
+}
+
 func (this* SimLogger) Errorf(format string, a ...interface{}) {
     if this.logLevel >= LL_ERROR {
         file, line := this.getCaller()
@@ -192,6 +297,23 @@ func (this* SimLogger) Errorf(format string, a ...interface{}) {
 
 // 写致命错误日志，
 // 注意在调用后进程会退出。
+
+func (this *SimLogger) Fatal(a ...interface{}) {
+    if this.logLevel >= LL_FATAL {
+        file, line := this.getCaller()
+        this.log(LL_FATAL, file, line, a...)
+        os.Exit(1) // 致使错误
+    }
+}
+
+func (this *SimLogger) Fatalln(a ...interface{}) {
+    if this.logLevel >= LL_FATAL {
+        file, line := this.getCaller()
+        this.logln(LL_FATAL, file, line, a...)
+        os.Exit(1) // 致使错误
+    }
+}
+
 func (this* SimLogger) Fatalf(format string, a ...interface{}) {
     if this.logLevel >= LL_FATAL {
         file, line := this.getCaller()
@@ -226,23 +348,16 @@ func (this* SimLogger) formatLogLineHeader(logLevel LogLevel, file string, line 
     }
 }
 
-// logLevel: 日志级别
-// file: 源代码文件名（不包含目录部分）
-// line: 源代码行号
-func (this* SimLogger) logf(logLevel LogLevel, file string, line int, format string, a ...interface{}) {
-    cur_filepath := fmt.Sprintf("%s/%s", this.logDir, this.logFilename)
-    logLineHeader := this.formatLogLineHeader(logLevel, file, line)
+func (this* SimLogger) writeLog(logLine string) {
     // 日志打屏
     if this.printScreen {
-        if this.enableLineFeed {
-            fmt.Printf(logLineHeader+format+"\n", a ...)
-        } else {
-            fmt.Printf(logLineHeader+format, a ...)
-        }
+        fmt.Print(logLine)
     }
 
+    // 写日志文件
     // 日志写文件
     // 0644 -> rw-r--r--
+    cur_filepath := fmt.Sprintf("%s/%s", this.logDir, this.logFilename)
     f, err := os.OpenFile(cur_filepath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
     if err == nil {
         defer f.Close()
@@ -250,17 +365,50 @@ func (this* SimLogger) logf(logLevel LogLevel, file string, line int, format str
         fi, err := f.Stat()
         if err == nil {
             logFileSize := fi.Size()
-
-            if this.enableLineFeed {
-                f.WriteString(fmt.Sprintf(logLineHeader+format+"\n", a ...))
-            } else {
-                f.WriteString(fmt.Sprintf(logLineHeader+format, a ...))
-            }
+            f.WriteString(logLine)
             if logFileSize >= this.logFileSize {
                 this.rotateLog(cur_filepath, f)
             }
         }
     }
+}
+
+func (this* SimLogger) log(logLevel LogLevel, file string, line int, a ...interface{}) {
+    var logLine string
+    logLineHeader := this.formatLogLineHeader(logLevel, file, line)
+
+    // 构建日志行
+    if this.enableLineFeed {
+        logLine = logLineHeader + fmt.Sprint(a ...) + "\n"
+    } else {
+        logLine = logLineHeader + fmt.Sprint(a ...)
+    }
+    this.writeLog(logLine)
+}
+
+func (this* SimLogger) logln(logLevel LogLevel, file string, line int, a ...interface{}) {
+    var logLine string
+    logLineHeader := this.formatLogLineHeader(logLevel, file, line)
+
+    // 构建日志行
+    logLine = logLineHeader + fmt.Sprint(a ...) + "\n"
+    this.writeLog(logLine)
+}
+
+// logLevel: 日志级别
+// file: 源代码文件名（不包含目录部分）
+// line: 源代码行号
+func (this* SimLogger) logf(logLevel LogLevel, file string, line int, format string, a ...interface{}) {
+    var logLine string
+    logLineHeader := this.formatLogLineHeader(logLevel, file, line)
+
+    // 构建日志行
+    if this.enableLineFeed {
+        logLine = fmt.Sprintf(logLineHeader+format+"\n", a ...)
+    } else {
+        logLine = fmt.Sprintf(logLineHeader+format, a ...)
+    }
+    this.writeLog(logLine)
 }
 
 func (this* SimLogger) rotateLog(cur_filepath string, f *os.File) {
