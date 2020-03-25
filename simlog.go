@@ -338,12 +338,12 @@ func (this* SimLogger) formatLogLineHeader(logLevel LogLevel, file string, line 
 
     if file != "" && line > 0 {
         // 记录源代码的文件名和行号
-        return fmt.Sprintf("[%d-%d-%d %d:%d:%d/%06d][%s][%s:%d]",
+        return fmt.Sprintf("[%d-%d-%d %d:%d:%d %06d][%s][%s:%d]",
             now.Year(), now.Month(), now.Day(), now.Hour(), now.Minute(), now.Second(), now.Nanosecond()/1000,
             GetLogLevelName(logLevel),
             filepath.Base(file), line)
     } else {
-        return fmt.Sprintf("[%d-%d-%d %d:%d:%d/%06d][%s]",
+        return fmt.Sprintf("[%d-%d-%d %d:%d:%d %06d][%s]",
             now.Year(), now.Month(), now.Day(), now.Hour(), now.Minute(), now.Second(), now.Nanosecond()/1000,
             GetLogLevelName(logLevel),)
     }
