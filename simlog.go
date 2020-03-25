@@ -491,13 +491,13 @@ func GetLogFilename(subSuffix string) string {
         if subSuffix == "" {
             return fmt.Sprintf("%s.log", filepath.Base(logFilename))
         } else {
-            return fmt.Sprintf("%s.%s.log", filepath.Base(logFilename), subSuffix)
+            return fmt.Sprintf("%s-%s.log", filepath.Base(logFilename), subSuffix)
         }
     } else {
         if subSuffix == "" {
             return fmt.Sprintf("%s.log", filepath.Base(os.Args[0]))
         } else {
-            return fmt.Sprintf("%s.%s.log", filepath.Base(os.Args[0]), subSuffix)
+            return fmt.Sprintf("%s-%s.log", filepath.Base(os.Args[0]), subSuffix)
         }
     }
 }
