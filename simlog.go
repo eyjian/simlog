@@ -143,7 +143,7 @@ func (this* SimLogger) Trace(a ...interface{}) {
     }
 }
 
-func (this* SimLogger) Traceln(format string, a ...interface{}) {
+func (this* SimLogger) Traceln(a ...interface{}) {
     if this.enableTraceLog {
         file, line := this.getCaller()
         this.logln(LL_TRACE, file, line, a...)
