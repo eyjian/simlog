@@ -93,6 +93,10 @@ func (this* SimLogger) SetSkip(skip int) {
     this.skip = skip
 }
 
+func (this* SimLogger) GetSkip() int {
+    return this.skip
+}
+
 // enabled为true表示是否记录源代码文件和行号
 func (this* SimLogger) EnableLogCaller(enabled bool) {
     this.logCaller = enabled
@@ -134,200 +138,312 @@ func (this* SimLogger) Rawf(format string, a ...interface{}) {
     //　TODO
 }
 
-// 写跟踪日志
+// 写跟踪日志（Trace）
 
 func (this* SimLogger) Trace(a ...interface{}) {
+    this.SkipTrace(this.skip, a ...)
+}
+
+func (this* SimLogger) Traceln(a ...interface{}) {
+    this.SkipTraceln(this.skip, a ...)
+}
+
+func (this* SimLogger) Tracef(format string, a ...interface{}) {
+    this.SkipTracef(this.skip, format, a ...)
+}
+
+// 写跟踪日志（SkipTrace）
+
+func (this* SimLogger) SkipTrace(skip int, a ...interface{}) {
     if this.enableTraceLog {
-        file, line := this.getCaller()
+        file, line := this.getCaller(skip)
         this.log(LL_TRACE, file, line, a...)
     }
 }
 
-func (this* SimLogger) Traceln(a ...interface{}) {
+func (this* SimLogger) SkipTraceln(skip int, a ...interface{}) {
     if this.enableTraceLog {
-        file, line := this.getCaller()
+        file, line := this.getCaller(skip)
         this.logln(LL_TRACE, file, line, a...)
     }
 }
 
-func (this* SimLogger) Tracef(format string, a ...interface{}) {
+func (this* SimLogger) SkipTracef(skip int, format string, a ...interface{}) {
     if this.enableTraceLog {
-        file, line := this.getCaller()
+        file, line := this.getCaller(skip)
         this.logf(LL_TRACE, file, line, format, a...)
     }
 }
 
-// 写详细日志
+// 写详细日志（Detail）
 
 func (this* SimLogger) Detail(a ...interface{}) {
+    this.SkipDetail(this.skip, a ...)
+}
+
+func (this* SimLogger) Detailln(a ...interface{}) {
+    this.SkipDetailln(this.skip, a ...)
+}
+
+func (this* SimLogger) Detailf(format string, a ...interface{}) {
+    this.SkipDetailf(this.skip, format, a ...)
+}
+
+// 写详细日志（SkipDetail）
+
+func (this* SimLogger) SkipDetail(skip int, a ...interface{}) {
     if this.logLevel >= LL_DETAIL {
-        file, line := this.getCaller()
+        file, line := this.getCaller(skip)
         this.log(LL_DETAIL, file, line, a...)
     }
 }
 
-func (this* SimLogger) Detailln(a ...interface{}) {
+func (this* SimLogger) SkipDetailln(skip int, a ...interface{}) {
     if this.logLevel >= LL_DETAIL {
-        file, line := this.getCaller()
+        file, line := this.getCaller(skip)
         this.logln(LL_DETAIL, file, line, a...)
     }
 }
 
-func (this* SimLogger) Detailf(format string, a ...interface{}) {
+func (this* SimLogger) SkipDetailf(skip int, format string, a ...interface{}) {
     if this.logLevel >= LL_DETAIL {
-        file, line := this.getCaller()
+        file, line := this.getCaller(skip)
         this.logf(LL_DETAIL, file, line, format, a...)
     }
 }
 
-// 写调试日志
+// 写调试日志（Debug）
 
 func (this* SimLogger) Debug(a ...interface{}) {
+    this.SkipDebug(this.skip, a ...)
+}
+
+func (this* SimLogger) Debugln(a ...interface{}) {
+    this.SkipDebugln(this.skip, a ...)
+}
+
+func (this* SimLogger) Debugf(format string, a ...interface{}) {
+    this.SkipDebugf(this.skip, format, a ...)
+}
+
+// 写调试日志（SkipDebug）
+
+func (this* SimLogger) SkipDebug(skip int, a ...interface{}) {
     if this.logLevel >= LL_DEBUG {
-        file, line := this.getCaller()
+        file, line := this.getCaller(skip)
         this.log(LL_DEBUG, file, line, a...)
     }
 }
 
-func (this* SimLogger) Debugln(a ...interface{}) {
+func (this* SimLogger) SkipDebugln(skip int, a ...interface{}) {
     if this.logLevel >= LL_DEBUG {
-        file, line := this.getCaller()
+        file, line := this.getCaller(skip)
         this.logln(LL_DEBUG, file, line, a...)
     }
 }
 
-func (this* SimLogger) Debugf(format string, a ...interface{}) {
+func (this* SimLogger) SkipDebugf(skip int, format string, a ...interface{}) {
     if this.logLevel >= LL_DEBUG {
-        file, line := this.getCaller()
+        file, line := this.getCaller(skip)
         this.logf(LL_DEBUG, file, line, format, a...)
     }
 }
 
-// 写信息日志
+// 写信息日志（Info）
 
 func (this *SimLogger) Info(a ...interface{}) {
+    this.SkipInfo(this.skip, a ...)
+}
+
+func (this *SimLogger) Infoln(a ...interface{}) {
+    this.SkipInfoln(this.skip, a ...)
+}
+
+func (this* SimLogger) Infof(format string, a ...interface{}) {
+    this.SkipInfof(this.skip, format, a ...)
+}
+
+// 写信息日志（SkipInfo）
+
+func (this *SimLogger) SkipInfo(skip int, a ...interface{}) {
     if this.logLevel >= LL_INFO {
-        file, line := this.getCaller()
+        file, line := this.getCaller(skip)
         this.log(LL_INFO, file, line, a ...)
     }
 }
 
-func (this *SimLogger) Infoln(a ...interface{}) {
+func (this *SimLogger) SkipInfoln(skip int, a ...interface{}) {
     if this.logLevel >= LL_INFO {
-        file, line := this.getCaller()
+        file, line := this.getCaller(skip)
         this.logln(LL_INFO, file, line, a ...)
     }
 }
 
-func (this* SimLogger) Infof(format string, a ...interface{}) {
+func (this* SimLogger) SkipInfof(skip int, format string, a ...interface{}) {
     if this.logLevel >= LL_INFO {
-        file, line := this.getCaller()
+        file, line := this.getCaller(skip)
         this.logf(LL_INFO, file, line, format, a...)
     }
 }
 
-// 写注意日志
+// 写注意日志（Notice）
 
 func (this* SimLogger) Notice(a ...interface{}) {
+    this.SkipNotice(this.skip, a ...)
+}
+
+func (this* SimLogger) Noticeln(a ...interface{}) {
+    this.SkipNoticeln(this.skip, a ...)
+}
+
+func (this* SimLogger) Noticef(format string, a ...interface{}) {
+    this.SkipNoticef(this.skip, format, a ...)
+}
+
+// 写注意日志（SkipNotice）
+
+func (this* SimLogger) SkipNotice(skip int, a ...interface{}) {
     if this.logLevel >= LL_NOTICE {
-        file, line := this.getCaller()
+        file, line := this.getCaller(skip)
         this.log(LL_NOTICE, file, line, a...)
     }
 }
 
-func (this* SimLogger) Noticeln(a ...interface{}) {
+func (this* SimLogger) SkipNoticeln(skip int, a ...interface{}) {
     if this.logLevel >= LL_NOTICE {
-        file, line := this.getCaller()
+        file, line := this.getCaller(skip)
         this.logln(LL_NOTICE, file, line, a...)
     }
 }
 
-func (this* SimLogger) Noticef(format string, a ...interface{}) {
+func (this* SimLogger) SkipNoticef(skip int, format string, a ...interface{}) {
     if this.logLevel >= LL_NOTICE {
-        file, line := this.getCaller()
+        file, line := this.getCaller(skip)
         this.logf(LL_NOTICE, file, line, format, a...)
     }
 }
 
-// 写警示日志
+// 写警示日志（Warning）
 
 func (this *SimLogger) Warning(a ...interface{}) {
+    this.SkipWarning(this.skip, a ...)
+}
+
+func (this *SimLogger) Warningln(a ...interface{}) {
+    this.SkipWarningln(this.skip, a ...)
+}
+
+func (this* SimLogger) Warningf(format string, a ...interface{}) {
+    this.SkipWarningf(this.skip, format, a ...)
+}
+
+// 写警示日志（SkipWarning）
+
+func (this *SimLogger) SkipWarning(skip int, a ...interface{}) {
     if this.logLevel >= LL_WARNING {
-        file, line := this.getCaller()
+        file, line := this.getCaller(skip)
         this.log(LL_WARNING, file, line, a...)
     }
 }
 
-func (this *SimLogger) Warningln(a ...interface{}) {
+func (this *SimLogger) SkipWarningln(skip int, a ...interface{}) {
     if this.logLevel >= LL_WARNING {
-        file, line := this.getCaller()
+        file, line := this.getCaller(skip)
         this.logln(LL_WARNING, file, line, a...)
     }
 }
 
-func (this* SimLogger) Warningf(format string, a ...interface{}) {
+func (this* SimLogger) SkipWarningf(skip int, format string, a ...interface{}) {
     if this.logLevel >= LL_WARNING {
-        file, line := this.getCaller()
+        file, line := this.getCaller(skip)
         this.logf(LL_WARNING, file, line, format, a...)
     }
 }
 
-// 写错误日志
+// 写错误日志（Error）
 
 func (this *SimLogger) Error(a ...interface{}) {
+    this.SkipError(this.skip, a ...)
+}
+
+func (this *SimLogger) Errorln(a ...interface{}) {
+    this.SkipErrorln(this.skip, a ...)
+}
+
+func (this* SimLogger) Errorf(format string, a ...interface{}) {
+    this.SkipErrorf(this.skip, format, a ...)
+}
+
+// 写错误日志（SkipError）
+
+func (this *SimLogger) SkipError(skip int, a ...interface{}) {
     if this.logLevel >= LL_ERROR {
-        file, line := this.getCaller()
+        file, line := this.getCaller(skip)
         this.log(LL_ERROR, file, line, a...)
     }
 }
 
-func (this *SimLogger) Errorln(a ...interface{}) {
+func (this *SimLogger) SkipErrorln(skip int, a ...interface{}) {
     if this.logLevel >= LL_ERROR {
-        file, line := this.getCaller()
+        file, line := this.getCaller(skip)
         this.logln(LL_ERROR, file, line, a...)
     }
 }
 
-func (this* SimLogger) Errorf(format string, a ...interface{}) {
+func (this* SimLogger) SkipErrorf(skip int, format string, a ...interface{}) {
     if this.logLevel >= LL_ERROR {
-        file, line := this.getCaller()
+        file, line := this.getCaller(skip)
         this.logf(LL_ERROR, file, line, format, a...)
     }
 }
 
-// 写致命错误日志，
+// 写致命错误日志（Fatal），
 // 注意在调用后进程会退出。
 
 func (this *SimLogger) Fatal(a ...interface{}) {
+    this.SkipFatal(this.skip, a ...)
+}
+
+func (this *SimLogger) Fatalln(a ...interface{}) {
+    this.SkipFatalln(this.skip, a ...)
+}
+
+func (this* SimLogger) Fatalf(format string, a ...interface{}) {
+    this.SkipFatalf(this.skip, format, a ...)
+}
+
+// 写致命错误日志（SkipFatal）
+
+func (this *SimLogger) SkipFatal(skip int, a ...interface{}) {
     if this.logLevel >= LL_FATAL {
-        file, line := this.getCaller()
+        file, line := this.getCaller(skip)
         this.log(LL_FATAL, file, line, a...)
         os.Exit(1) // 致使错误
     }
 }
 
-func (this *SimLogger) Fatalln(a ...interface{}) {
+func (this *SimLogger) SkipFatalln(skip int, a ...interface{}) {
     if this.logLevel >= LL_FATAL {
-        file, line := this.getCaller()
+        file, line := this.getCaller(skip)
         this.logln(LL_FATAL, file, line, a...)
         os.Exit(1) // 致使错误
     }
 }
 
-func (this* SimLogger) Fatalf(format string, a ...interface{}) {
+func (this* SimLogger) SkipFatalf(skip int, format string, a ...interface{}) {
     if this.logLevel >= LL_FATAL {
-        file, line := this.getCaller()
+        file, line := this.getCaller(skip)
         this.logf(LL_FATAL, file, line, format, a...)
         os.Exit(1) // 致使错误
     }
 }
 
 // 返回调用者所在源代码文件名和行号
-func (this* SimLogger) getCaller() (string, int) {
+func (this* SimLogger) getCaller(skip int) (string, int) {
     var file string
     var line int = 0
     if this.logCaller {
-        _, file, line, _ = runtime.Caller(this.skip)
+        _, file, line, _ = runtime.Caller(skip)
     }
     return file, line
 }
