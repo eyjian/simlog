@@ -100,6 +100,11 @@ func (this* SimLogger) GetSkip() int32 {
     return atomic.LoadInt32(&this.skip)
 }
 
+// 是否开启了记录调用者
+func (this* SimLogger) EnabledLogCaller() bool {
+    return atomic.LoadInt32(&this.logCaller) == 1
+}
+
 // enabled为true表示是否记录源代码文件和行号
 func (this* SimLogger) EnableLogCaller(enabled bool) {
     if enabled {
@@ -109,6 +114,11 @@ func (this* SimLogger) EnableLogCaller(enabled bool) {
     }
 }
 
+// 是否开启了日志打屏
+func (this* SimLogger) EnabledPrintScreen() bool {
+    return atomic.LoadInt32(&this.printScreen) == 1
+}
+
 // enabled为true表示日志打屏
 func (this* SimLogger) EnablePrintScreen(enabled bool) {
     if enabled {
@@ -116,6 +126,11 @@ func (this* SimLogger) EnablePrintScreen(enabled bool) {
     } else {
         atomic.StoreInt32(&this.printScreen, 0)
     }
+}
+
+// 是否打开了跟踪日志
+func (this* SimLogger) EnabledTraceLog() bool {
+    return atomic.LoadInt32(&this.enableTraceLog) == 1
 }
 
 // enabled为true表示开启跟踪日志，
@@ -128,6 +143,11 @@ func (this* SimLogger) EnableTraceLog(enabled bool) {
     }
 }
 
+// 是否开启了自动换行
+func (this* SimLogger) EnabledLineFeed() bool {
+    return atomic.LoadInt32(&this.enableLineFeed) == 1
+}
+
 // 是否自动换行，enabled为true表示开启自动换行
 func (this* SimLogger) EnableLineFeed(enabled bool) {
     if enabled {
@@ -137,14 +157,29 @@ func (this* SimLogger) EnableLineFeed(enabled bool) {
     }
 }
 
+// 取得当前日志级别
+func (this* SimLogger) GetLogLevel() int32 {
+    return atomic.LoadInt32(&this.logLevel)
+}
+
 // 设置日志级别
 func (this* SimLogger) SetLogLevel(logLevel LogLevel) {
     atomic.StoreInt32(&this.logLevel, int32(logLevel))
 }
 
+// 取得单个日志文件大小
+func (this* SimLogger) GetLogFileSize() int64{
+    return atomic.LoadInt64(&this.logFileSize)
+}
+
 // 设置单个日志文件字节数（参考值）
 func (this* SimLogger) SetLogFileSize(logFileSize int64) {
     atomic.StoreInt64(&this.logFileSize, logFileSize)
+}
+
+// 取得日志备份数
+func (this* SimLogger) GetNumBackups() int32 {
+    return atomic.LoadInt32(&this.logNumBackups)
 }
 
 // 设置日志文件备份数
