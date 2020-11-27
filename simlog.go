@@ -194,16 +194,16 @@ func (this* SimLogger) Rawf(format string, a ...interface{}) {
 
 // 写跟踪日志（Trace）
 
-func (this* SimLogger) Trace(a ...interface{}) {
-    this.SkipTrace(this.skip, a ...)
+func (this* SimLogger) Trace(a ...interface{}) (int, error) {
+    return this.SkipTrace(this.skip, a ...)
 }
 
-func (this* SimLogger) Traceln(a ...interface{}) {
-    this.SkipTraceln(this.skip, a ...)
+func (this* SimLogger) Traceln(a ...interface{}) (int, error) {
+    return this.SkipTraceln(this.skip, a ...)
 }
 
-func (this* SimLogger) Tracef(format string, a ...interface{}) {
-    this.SkipTracef(this.skip, format, a ...)
+func (this* SimLogger) Tracef(format string, a ...interface{}) (int, error) {
+    return this.SkipTracef(this.skip, format, a ...)
 }
 
 // 写跟踪日志（SkipTrace）
@@ -212,24 +212,30 @@ func (this* SimLogger) IsEnabledTraceLog() bool {
     return atomic.LoadInt32(&this.enableTraceLog) == 1
 }
 
-func (this* SimLogger) SkipTrace(skip int32, a ...interface{}) {
-    if this.IsEnabledTraceLog() {
+func (this* SimLogger) SkipTrace(skip int32, a ...interface{}) (int, error) {
+    if !this.IsEnabledTraceLog() {
+        return 0, nil
+    } else {
         file, line := this.getCaller(skip)
-        this.log(LL_TRACE, file, line, a...)
+        return this.log(LL_TRACE, file, line, a...)
     }
 }
 
-func (this* SimLogger) SkipTraceln(skip int32, a ...interface{}) {
-    if this.IsEnabledTraceLog() {
+func (this* SimLogger) SkipTraceln(skip int32, a ...interface{}) (int, error) {
+    if !this.IsEnabledTraceLog() {
+        return 0, nil
+    } else {
         file, line := this.getCaller(skip)
-        this.logln(LL_TRACE, file, line, a...)
+        return this.logln(LL_TRACE, file, line, a...)
     }
 }
 
-func (this* SimLogger) SkipTracef(skip int32, format string, a ...interface{}) {
-    if this.IsEnabledTraceLog() {
+func (this* SimLogger) SkipTracef(skip int32, format string, a ...interface{}) (int, error) {
+    if !this.IsEnabledTraceLog() {
+        return 0, nil
+    } else {
         file, line := this.getCaller(skip)
-        this.logf(LL_TRACE, file, line, format, a...)
+        return this.logf(LL_TRACE, file, line, format, a...)
     }
 }
 
@@ -239,38 +245,44 @@ func (this* SimLogger) IsEnabledDetailLog() bool {
     return atomic.LoadInt32(&this.logLevel) >= int32(LL_DETAIL)
 }
 
-func (this* SimLogger) Detail(a ...interface{}) {
-    this.SkipDetail(this.skip, a ...)
+func (this* SimLogger) Detail(a ...interface{}) (int, error) {
+    return this.SkipDetail(this.skip, a ...)
 }
 
-func (this* SimLogger) Detailln(a ...interface{}) {
-    this.SkipDetailln(this.skip, a ...)
+func (this* SimLogger) Detailln(a ...interface{}) (int, error) {
+    return this.SkipDetailln(this.skip, a ...)
 }
 
-func (this* SimLogger) Detailf(format string, a ...interface{}) {
-    this.SkipDetailf(this.skip, format, a ...)
+func (this* SimLogger) Detailf(format string, a ...interface{}) (int, error) {
+    return this.SkipDetailf(this.skip, format, a ...)
 }
 
 // 写详细日志（SkipDetail）
 
-func (this* SimLogger) SkipDetail(skip int32, a ...interface{}) {
-    if this.IsEnabledDetailLog() {
+func (this* SimLogger) SkipDetail(skip int32, a ...interface{}) (int, error) {
+    if !this.IsEnabledDetailLog() {
+        return 0, nil
+    } else {
         file, line := this.getCaller(skip)
-        this.log(LL_DETAIL, file, line, a...)
+        return this.log(LL_DETAIL, file, line, a...)
     }
 }
 
-func (this* SimLogger) SkipDetailln(skip int32, a ...interface{}) {
-    if this.IsEnabledDetailLog() {
+func (this* SimLogger) SkipDetailln(skip int32, a ...interface{}) (int, error) {
+    if !this.IsEnabledDetailLog() {
+        return 0, nil
+    } else {
         file, line := this.getCaller(skip)
-        this.logln(LL_DETAIL, file, line, a...)
+        return this.logln(LL_DETAIL, file, line, a...)
     }
 }
 
-func (this* SimLogger) SkipDetailf(skip int32, format string, a ...interface{}) {
-    if this.IsEnabledDetailLog() {
+func (this* SimLogger) SkipDetailf(skip int32, format string, a ...interface{}) (int, error) {
+    if !this.IsEnabledDetailLog() {
+        return 0, nil
+    } else {
         file, line := this.getCaller(skip)
-        this.logf(LL_DETAIL, file, line, format, a...)
+        return this.logf(LL_DETAIL, file, line, format, a...)
     }
 }
 
@@ -280,38 +292,44 @@ func (this* SimLogger) IsEnabledDebugLog() bool {
     return atomic.LoadInt32(&this.logLevel) >= int32(LL_DEBUG)
 }
 
-func (this* SimLogger) Debug(a ...interface{}) {
-    this.SkipDebug(this.skip, a ...)
+func (this* SimLogger) Debug(a ...interface{}) (int, error) {
+    return this.SkipDebug(this.skip, a ...)
 }
 
-func (this* SimLogger) Debugln(a ...interface{}) {
-    this.SkipDebugln(this.skip, a ...)
+func (this* SimLogger) Debugln(a ...interface{}) (int, error) {
+    return this.SkipDebugln(this.skip, a ...)
 }
 
-func (this* SimLogger) Debugf(format string, a ...interface{}) {
-    this.SkipDebugf(this.skip, format, a ...)
+func (this* SimLogger) Debugf(format string, a ...interface{}) (int, error) {
+    return this.SkipDebugf(this.skip, format, a ...)
 }
 
 // 写调试日志（SkipDebug）
 
-func (this* SimLogger) SkipDebug(skip int32, a ...interface{}) {
-    if this.IsEnabledDebugLog() {
+func (this* SimLogger) SkipDebug(skip int32, a ...interface{}) (int, error) {
+    if !this.IsEnabledDebugLog() {
+        return 0, nil
+    } else {
         file, line := this.getCaller(skip)
-        this.log(LL_DEBUG, file, line, a...)
+        return this.log(LL_DEBUG, file, line, a...)
     }
 }
 
-func (this* SimLogger) SkipDebugln(skip int32, a ...interface{}) {
-    if this.IsEnabledDebugLog() {
+func (this* SimLogger) SkipDebugln(skip int32, a ...interface{}) (int, error) {
+    if !this.IsEnabledDebugLog() {
+        return 0, nil
+    } else {
         file, line := this.getCaller(skip)
-        this.logln(LL_DEBUG, file, line, a...)
+        return this.logln(LL_DEBUG, file, line, a...)
     }
 }
 
-func (this* SimLogger) SkipDebugf(skip int32, format string, a ...interface{}) {
-    if this.IsEnabledDebugLog() {
+func (this* SimLogger) SkipDebugf(skip int32, format string, a ...interface{}) (int, error) {
+    if !this.IsEnabledDebugLog() {
+        return 0, nil
+    } else {
         file, line := this.getCaller(skip)
-        this.logf(LL_DEBUG, file, line, format, a...)
+        return this.logf(LL_DEBUG, file, line, format, a...)
     }
 }
 
@@ -321,38 +339,44 @@ func (this* SimLogger) IsEnabledInfoLog() bool {
     return atomic.LoadInt32(&this.logLevel) >= int32(LL_INFO)
 }
 
-func (this *SimLogger) Info(a ...interface{}) {
-    this.SkipInfo(this.skip, a ...)
+func (this *SimLogger) Info(a ...interface{}) (int, error) {
+    return this.SkipInfo(this.skip, a ...)
 }
 
-func (this *SimLogger) Infoln(a ...interface{}) {
-    this.SkipInfoln(this.skip, a ...)
+func (this *SimLogger) Infoln(a ...interface{}) (int, error) {
+    return this.SkipInfoln(this.skip, a ...)
 }
 
-func (this* SimLogger) Infof(format string, a ...interface{}) {
-    this.SkipInfof(this.skip, format, a ...)
+func (this* SimLogger) Infof(format string, a ...interface{}) (int, error) {
+    return this.SkipInfof(this.skip, format, a ...)
 }
 
 // 写信息日志（SkipInfo）
 
-func (this *SimLogger) SkipInfo(skip int32, a ...interface{}) {
-    if this.IsEnabledInfoLog() {
+func (this *SimLogger) SkipInfo(skip int32, a ...interface{}) (int, error) {
+    if !this.IsEnabledInfoLog() {
+        return 0, nil
+    } else {
         file, line := this.getCaller(skip)
-        this.log(LL_INFO, file, line, a ...)
+        return this.log(LL_INFO, file, line, a ...)
     }
 }
 
-func (this *SimLogger) SkipInfoln(skip int32, a ...interface{}) {
-    if this.IsEnabledInfoLog() {
+func (this *SimLogger) SkipInfoln(skip int32, a ...interface{}) (int, error) {
+    if !this.IsEnabledInfoLog() {
+        return 0, nil
+    } else {
         file, line := this.getCaller(skip)
-        this.logln(LL_INFO, file, line, a ...)
+        return this.logln(LL_INFO, file, line, a ...)
     }
 }
 
-func (this* SimLogger) SkipInfof(skip int32, format string, a ...interface{}) {
-    if this.IsEnabledInfoLog() {
+func (this* SimLogger) SkipInfof(skip int32, format string, a ...interface{}) (int, error) {
+    if !this.IsEnabledInfoLog() {
+        return 0, nil
+    } else {
         file, line := this.getCaller(skip)
-        this.logf(LL_INFO, file, line, format, a...)
+        return this.logf(LL_INFO, file, line, format, a...)
     }
 }
 
@@ -362,38 +386,44 @@ func (this* SimLogger) IsEnabledNoticeLog() bool {
     return atomic.LoadInt32(&this.logLevel) >= int32(LL_NOTICE)
 }
 
-func (this* SimLogger) Notice(a ...interface{}) {
-    this.SkipNotice(this.skip, a ...)
+func (this* SimLogger) Notice(a ...interface{}) (int, error) {
+    return this.SkipNotice(this.skip, a ...)
 }
 
-func (this* SimLogger) Noticeln(a ...interface{}) {
-    this.SkipNoticeln(this.skip, a ...)
+func (this* SimLogger) Noticeln(a ...interface{}) (int, error) {
+    return this.SkipNoticeln(this.skip, a ...)
 }
 
-func (this* SimLogger) Noticef(format string, a ...interface{}) {
-    this.SkipNoticef(this.skip, format, a ...)
+func (this* SimLogger) Noticef(format string, a ...interface{}) (int, error) {
+    return this.SkipNoticef(this.skip, format, a ...)
 }
 
 // 写注意日志（SkipNotice）
 
-func (this* SimLogger) SkipNotice(skip int32, a ...interface{}) {
-    if this.IsEnabledNoticeLog() {
+func (this* SimLogger) SkipNotice(skip int32, a ...interface{}) (int, error) {
+    if !this.IsEnabledNoticeLog() {
+        return 0, nil
+    } else {
         file, line := this.getCaller(skip)
-        this.log(LL_NOTICE, file, line, a...)
+        return this.log(LL_NOTICE, file, line, a...)
     }
 }
 
-func (this* SimLogger) SkipNoticeln(skip int32, a ...interface{}) {
-    if this.IsEnabledNoticeLog() {
+func (this* SimLogger) SkipNoticeln(skip int32, a ...interface{}) (int, error) {
+    if !this.IsEnabledNoticeLog() {
+        return 0, nil
+    } else {
         file, line := this.getCaller(skip)
-        this.logln(LL_NOTICE, file, line, a...)
+        return this.logln(LL_NOTICE, file, line, a...)
     }
 }
 
-func (this* SimLogger) SkipNoticef(skip int32, format string, a ...interface{}) {
-    if this.IsEnabledNoticeLog() {
+func (this* SimLogger) SkipNoticef(skip int32, format string, a ...interface{}) (int, error) {
+    if !this.IsEnabledNoticeLog() {
+        return 0, nil
+    } else {
         file, line := this.getCaller(skip)
-        this.logf(LL_NOTICE, file, line, format, a...)
+        return this.logf(LL_NOTICE, file, line, format, a...)
     }
 }
 
@@ -403,38 +433,44 @@ func (this* SimLogger) IsEnabledWarningLog() bool {
     return atomic.LoadInt32(&this.logLevel) >= int32(LL_WARNING)
 }
 
-func (this *SimLogger) Warning(a ...interface{}) {
-    this.SkipWarning(this.skip, a ...)
+func (this *SimLogger) Warning(a ...interface{}) (int, error) {
+    return this.SkipWarning(this.skip, a ...)
 }
 
-func (this *SimLogger) Warningln(a ...interface{}) {
-    this.SkipWarningln(this.skip, a ...)
+func (this *SimLogger) Warningln(a ...interface{}) (int, error) {
+    return this.SkipWarningln(this.skip, a ...)
 }
 
-func (this* SimLogger) Warningf(format string, a ...interface{}) {
-    this.SkipWarningf(this.skip, format, a ...)
+func (this* SimLogger) Warningf(format string, a ...interface{}) (int, error) {
+    return this.SkipWarningf(this.skip, format, a ...)
 }
 
 // 写警示日志（SkipWarning）
 
-func (this *SimLogger) SkipWarning(skip int32, a ...interface{}) {
-    if this.IsEnabledWarningLog() {
+func (this *SimLogger) SkipWarning(skip int32, a ...interface{}) (int, error) {
+    if !this.IsEnabledWarningLog() {
+        return 0, nil
+    } else {
         file, line := this.getCaller(skip)
-        this.log(LL_WARNING, file, line, a...)
+        return this.log(LL_WARNING, file, line, a...)
     }
 }
 
-func (this *SimLogger) SkipWarningln(skip int32, a ...interface{}) {
-    if this.IsEnabledWarningLog() {
+func (this *SimLogger) SkipWarningln(skip int32, a ...interface{}) (int, error) {
+    if !this.IsEnabledWarningLog() {
+        return 0, nil
+    } else {
         file, line := this.getCaller(skip)
-        this.logln(LL_WARNING, file, line, a...)
+        return this.logln(LL_WARNING, file, line, a...)
     }
 }
 
-func (this* SimLogger) SkipWarningf(skip int32, format string, a ...interface{}) {
-    if this.IsEnabledWarningLog() {
+func (this* SimLogger) SkipWarningf(skip int32, format string, a ...interface{}) (int, error) {
+    if !this.IsEnabledWarningLog() {
+        return 0, nil
+    } else {
         file, line := this.getCaller(skip)
-        this.logf(LL_WARNING, file, line, format, a...)
+        return this.logf(LL_WARNING, file, line, format, a...)
     }
 }
 
@@ -444,38 +480,44 @@ func (this* SimLogger) IsEnabledErrorLog() bool {
     return atomic.LoadInt32(&this.logLevel) >= int32(LL_ERROR)
 }
 
-func (this *SimLogger) Error(a ...interface{}) {
-    this.SkipError(this.skip, a ...)
+func (this *SimLogger) Error(a ...interface{}) (int, error) {
+    return this.SkipError(this.skip, a ...)
 }
 
-func (this *SimLogger) Errorln(a ...interface{}) {
-    this.SkipErrorln(this.skip, a ...)
+func (this *SimLogger) Errorln(a ...interface{}) (int, error) {
+    return this.SkipErrorln(this.skip, a ...)
 }
 
-func (this* SimLogger) Errorf(format string, a ...interface{}) {
-    this.SkipErrorf(this.skip, format, a ...)
+func (this* SimLogger) Errorf(format string, a ...interface{}) (int, error) {
+    return this.SkipErrorf(this.skip, format, a ...)
 }
 
 // 写错误日志（SkipError）
 
-func (this *SimLogger) SkipError(skip int32, a ...interface{}) {
-    if this.IsEnabledErrorLog() {
+func (this *SimLogger) SkipError(skip int32, a ...interface{}) (int, error) {
+    if !this.IsEnabledErrorLog() {
+        return 0, nil
+    } else {
         file, line := this.getCaller(skip)
-        this.log(LL_ERROR, file, line, a...)
+        return this.log(LL_ERROR, file, line, a...)
     }
 }
 
-func (this *SimLogger) SkipErrorln(skip int32, a ...interface{}) {
-    if this.IsEnabledErrorLog() {
+func (this *SimLogger) SkipErrorln(skip int32, a ...interface{}) (int, error) {
+    if !this.IsEnabledErrorLog() {
+        return 0, nil
+    } else {
         file, line := this.getCaller(skip)
-        this.logln(LL_ERROR, file, line, a...)
+        return this.logln(LL_ERROR, file, line, a...)
     }
 }
 
-func (this* SimLogger) SkipErrorf(skip int32, format string, a ...interface{}) {
-    if this.IsEnabledErrorLog() {
+func (this* SimLogger) SkipErrorf(skip int32, format string, a ...interface{}) (int, error) {
+    if !this.IsEnabledErrorLog() {
+        return 0, nil
+    } else {
         file, line := this.getCaller(skip)
-        this.logf(LL_ERROR, file, line, format, a...)
+        return this.logf(LL_ERROR, file, line, format, a...)
     }
 }
 
@@ -486,41 +528,50 @@ func (this* SimLogger) IsEnabledFatalLog() bool {
     return atomic.LoadInt32(&this.logLevel) >= int32(LL_FATAL)
 }
 
-func (this *SimLogger) Fatal(a ...interface{}) {
-    this.SkipFatal(this.skip, a ...)
+func (this *SimLogger) Fatal(a ...interface{}) (int, error) {
+    return this.SkipFatal(this.skip, a ...)
 }
 
-func (this *SimLogger) Fatalln(a ...interface{}) {
-    this.SkipFatalln(this.skip, a ...)
+func (this *SimLogger) Fatalln(a ...interface{}) (int, error) {
+    return this.SkipFatalln(this.skip, a ...)
 }
 
-func (this* SimLogger) Fatalf(format string, a ...interface{}) {
-    this.SkipFatalf(this.skip, format, a ...)
+func (this* SimLogger) Fatalf(format string, a ...interface{}) (int, error) {
+    return this.SkipFatalf(this.skip, format, a ...)
 }
 
 // 写致命错误日志（SkipFatal）
 
-func (this *SimLogger) SkipFatal(skip int32, a ...interface{}) {
-    if this.IsEnabledFatalLog() {
+func (this *SimLogger) SkipFatal(skip int32, a ...interface{}) (int, error) {
+    if !this.IsEnabledFatalLog() {
+        return 0, nil
+    } else {
         file, line := this.getCaller(skip)
-        this.log(LL_FATAL, file, line, a...)
+        n, err := this.log(LL_FATAL, file, line, a...)
         os.Exit(1) // 致使错误
+        return n, err
     }
 }
 
-func (this *SimLogger) SkipFatalln(skip int32, a ...interface{}) {
-    if this.IsEnabledFatalLog() {
+func (this *SimLogger) SkipFatalln(skip int32, a ...interface{}) (int, error) {
+    if !this.IsEnabledFatalLog() {
+        return 0, nil
+    } else {
         file, line := this.getCaller(skip)
-        this.logln(LL_FATAL, file, line, a...)
+        n, err := this.logln(LL_FATAL, file, line, a...)
         os.Exit(1) // 致使错误
+        return n, err
     }
 }
 
-func (this* SimLogger) SkipFatalf(skip int32, format string, a ...interface{}) {
-    if this.IsEnabledFatalLog() {
+func (this* SimLogger) SkipFatalf(skip int32, format string, a ...interface{}) (int, error) {
+    if !this.IsEnabledFatalLog() {
+        return 0, nil
+    } else {
         file, line := this.getCaller(skip)
-        this.logf(LL_FATAL, file, line, format, a...)
+        n, err := this.logf(LL_FATAL, file, line, format, a...)
         os.Exit(1) // 致使错误
+        return n, err
     }
 }
 
@@ -551,7 +602,7 @@ func (this* SimLogger) formatLogLineHeader(logLevel LogLevel, file string, line 
     }
 }
 
-func (this* SimLogger) writeLog(logLine string) {
+func (this* SimLogger) writeLog(logLine string) (int, error) {
     // 日志打屏
     if atomic.LoadInt32(&this.printScreen) == 1 {
         fmt.Print(logLine)
@@ -562,21 +613,26 @@ func (this* SimLogger) writeLog(logLine string) {
     // 0644 -> rw-r--r--
     cur_filepath := fmt.Sprintf("%s/%s", this.logDir, this.logFilename)
     f, err := os.OpenFile(cur_filepath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
-    if err == nil {
+    if err != nil {
+        return 0, err
+    } else {
         defer f.Close()
 
         fi, err := f.Stat()
-        if err == nil {
+        if err != nil {
+            return 0, err
+        } else {
             logFileSize := fi.Size()
-            f.WriteString(logLine)
+            n, err := f.WriteString(logLine)
             if logFileSize >= this.logFileSize {
                 this.rotateLog(cur_filepath, f)
             }
+            return n, err
         }
     }
 }
 
-func (this* SimLogger) log(logLevel LogLevel, file string, line int, a ...interface{}) {
+func (this* SimLogger) log(logLevel LogLevel, file string, line int, a ...interface{}) (int, error) {
     var logLine string
     logLineHeader := this.formatLogLineHeader(logLevel, file, line)
 
@@ -586,22 +642,22 @@ func (this* SimLogger) log(logLevel LogLevel, file string, line int, a ...interf
     } else {
         logLine = logLineHeader + fmt.Sprint(a ...)
     }
-    this.writeLog(logLine)
+    return this.writeLog(logLine)
 }
 
-func (this* SimLogger) logln(logLevel LogLevel, file string, line int, a ...interface{}) {
+func (this* SimLogger) logln(logLevel LogLevel, file string, line int, a ...interface{}) (int, error) {
     var logLine string
     logLineHeader := this.formatLogLineHeader(logLevel, file, line)
 
     // 构建日志行
     logLine = logLineHeader + fmt.Sprint(a ...) + "\n"
-    this.writeLog(logLine)
+    return this.writeLog(logLine)
 }
 
 // logLevel: 日志级别
 // file: 源代码文件名（不包含目录部分）
 // line: 源代码行号
-func (this* SimLogger) logf(logLevel LogLevel, file string, line int, format string, a ...interface{}) {
+func (this* SimLogger) logf(logLevel LogLevel, file string, line int, format string, a ...interface{}) (int, error) {
     var logLine string
     logLineHeader := this.formatLogLineHeader(logLevel, file, line)
 
@@ -611,7 +667,7 @@ func (this* SimLogger) logf(logLevel LogLevel, file string, line int, format str
     } else {
         logLine = fmt.Sprintf(logLineHeader+format, a ...)
     }
-    this.writeLog(logLine)
+    return this.writeLog(logLine)
 }
 
 func (this* SimLogger) rotateLog(cur_filepath string, f *os.File) {
