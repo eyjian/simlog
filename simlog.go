@@ -36,7 +36,7 @@ const (
     LL_DEBUG LogLevel = 5
     LL_DETAIL LogLevel = 6 // 比DEBUG更详细的级别
     LL_TRACE LogLevel = 7 // 跟踪日志，独立的日志级别
-    LL_RAW LogLevel = 8 // 裸日志，独立的日志级别
+    LL_RAW LogLevel = 8 // 裸日志
 )
 
 // 使用之前，应先调用SimLogger的Init进行初始化
@@ -47,6 +47,7 @@ type SimLogger struct {
     printScreen int32 // 是否屏幕打印（默认为false）
     enableTraceLog int32 // 是否开启跟踪日志，不能通过logLevel来控制跟踪日志
     enableLineFeed int32 // 是否自动换行（默认为false，即不自动换行）
+    enableRawLog int32 // 是否允许裸日志
     logLevel int32 // 日志级别（默认为LL_INFO）
     logFileSize int64 // 单个日志文件大小（参考值，实际可能超出，默认为100M）
     logNumBackups int32 // 日志文件备份数（默认为包括当前的在内的共10个）
@@ -69,6 +70,7 @@ func (this* SimLogger) Init() bool {
     this.printScreen = 0
     this.enableTraceLog = 0
     this.enableLineFeed = 0
+    this.enableRawLog = 0
     this.skip = 3
 
     this.logLevel = int32(LL_INFO)
@@ -111,6 +113,14 @@ func (this* SimLogger) EnableLogCaller(enabled bool) {
         atomic.StoreInt32(&this.logCaller, 1)
     } else {
         atomic.StoreInt32(&this.logCaller, 0)
+    }
+}
+
+func (this* SimLogger) EnableRawLog(enabled bool) {
+    if enabled {
+        atomic.StoreInt32(&this.enableRawLog, 1)
+    } else {
+        atomic.StoreInt32(&this.enableRawLog, 0)
     }
 }
 
@@ -188,8 +198,17 @@ func (this* SimLogger) SetNumBackups(logNumBackups int) {
 }
 
 // 写裸日志
-func (this* SimLogger) Rawf(format string, a ...interface{}) {
-    //　TODO
+
+func (this* SimLogger) Raw(a ...interface{}) (int, error) {
+    return this.log(LL_RAW, "", 0, a ...)
+}
+
+func (this* SimLogger) Rawln(a ...interface{}) (int, error) {
+    return this.logln(LL_RAW, "", 0, a ...)
+}
+
+func (this* SimLogger) Rawf(format string, a ...interface{}) (int, error) {
+    return this.logf(LL_RAW, "", 0, format, a ...)
 }
 
 // 写跟踪日志（Trace）
@@ -587,18 +606,23 @@ func (this* SimLogger) getCaller(skip int32) (string, int) {
 
 // 组装日志行头
 func (this* SimLogger) formatLogLineHeader(logLevel LogLevel, file string, line int) string {
-    now := time.Now()
-
-    if file != "" && line > 0 {
-        // 记录源代码的文件名和行号
-        return fmt.Sprintf("[%d-%d-%d %d:%d:%d %06d][%s][%s:%d]",
-            now.Year(), now.Month(), now.Day(), now.Hour(), now.Minute(), now.Second(), now.Nanosecond()/1000,
-            GetLogLevelName(logLevel),
-            filepath.Base(file), line)
+    enableRawLog := atomic.LoadInt32(&this.enableRawLog)
+    if enableRawLog == 1 && logLevel == LL_RAW {
+        return "" // 裸日志，不需要日志头
     } else {
-        return fmt.Sprintf("[%d-%d-%d %d:%d:%d %06d][%s]",
-            now.Year(), now.Month(), now.Day(), now.Hour(), now.Minute(), now.Second(), now.Nanosecond()/1000,
-            GetLogLevelName(logLevel),)
+        now := time.Now()
+
+        if file != "" && line > 0 {
+            // 记录源代码的文件名和行号
+            return fmt.Sprintf("[%d-%d-%d %d:%d:%d %06d][%s][%s:%d]",
+                now.Year(), now.Month(), now.Day(), now.Hour(), now.Minute(), now.Second(), now.Nanosecond()/1000,
+                GetLogLevelName(logLevel),
+                filepath.Base(file), line)
+        } else {
+            return fmt.Sprintf("[%d-%d-%d %d:%d:%d %06d][%s]",
+                now.Year(), now.Month(), now.Day(), now.Hour(), now.Minute(), now.Second(), now.Nanosecond()/1000,
+                GetLogLevelName(logLevel), )
+        }
     }
 }
 
