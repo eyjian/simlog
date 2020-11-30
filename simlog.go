@@ -626,6 +626,14 @@ func (this* SimLogger) formatLogLineHeader(logLevel LogLevel, file string, line 
     }
 }
 
+// 实际接口 Writer：
+// type Writer interface {
+//   Write(p []byte) (n int, err error)
+// }
+func (this* SimLogger) Write(p []byte) (int, error) {
+    return this.writeLog(string(p))
+}
+
 func (this* SimLogger) writeLog(logLine string) (int, error) {
     // 日志打屏
     if atomic.LoadInt32(&this.printScreen) == 1 {
