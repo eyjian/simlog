@@ -26,5 +26,10 @@ func main() {
     simlogger.EnableLineFeed(true)
     simlogger.Infof("Linefeed enabled")
 
+    simlogger.SetLogObserver(logObserver)
     simlogger.Infof("Exit now")
+}
+
+func logObserver(logLevel simlog.LogLevel, logHeader string, logBody string) {
+    fmt.Printf("[OBSERVED][%s]%s%s\n", simlog.GetLogLevelName(logLevel), logHeader, logBody)
 }

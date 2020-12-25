@@ -28,6 +28,8 @@ import (
 
 // 日志级别（Log Level）
 type LogLevel int
+
+// 调用函数 GetLogLevelName，可取得对应级别的字符串值
 const (
     LL_FATAL LogLevel = 0
     LL_ERROR LogLevel = 1
@@ -57,7 +59,11 @@ type SimLogger struct {
     subSuffix string // 日志文件名子后缀：filename.SUBSUFFIX.log，默认为空表示无子后缀
     tag string // 默认为空，如果不为空，则会作为日志头的一部分，比如可为一个 IP 地址，用来标识日志源于哪
     skip int32 // 源代码所在跳（默认为3，但如果有对SimLogger包装调用，则包装一层应当设置为4，包装两层设置为5，依次类推）
+    logObserver LogObserver
 }
+
+// 日志观察者，通过设置 LogObserver 可截获日志，比如将截获的日志写入到 Kafka 等
+type LogObserver func(logLevel LogLevel, logHeader string, logBody string)
 
 // 设置日志文件名子后缀，
 // 只在在使用默认的日志文件名进才有效，并且SetSubSuffix必须在Init之前调用才有效
@@ -68,6 +74,11 @@ func (this* SimLogger) SetSubSuffix(subSuffix string) {
 // 注意 SetTag 不是协程安全的，应当在使用之前调用
 func (this* SimLogger) SetTag(tag string) {
     this.tag = tag
+}
+
+// 需在 Init 之后调用，但应在写日志之前调用，非协程安全
+func (this* SimLogger) SetLogObserver(logObserver LogObserver) {
+    this.logObserver = logObserver
 }
 
 // Init应在SimLogger所有其它成员被调用之前调用，
@@ -85,6 +96,8 @@ func (this* SimLogger) Init() bool {
     this.logDir = GetLogDir()
     this.logFileSize = 1024 * 1024 * 100
     this.logNumBackups = 10
+
+    this.logObserver = nil
     return true
 }
 
@@ -683,6 +696,9 @@ func (this* SimLogger) log(logLevel LogLevel, file string, line int, a ...interf
     } else {
         logLine = logLineHeader + logBody
     }
+    if this.logObserver != nil {
+        this.logObserver(logLevel, logLineHeader, logBody)
+    }
     return this.writeLog(logLine)
 }
 
@@ -693,6 +709,9 @@ func (this* SimLogger) logln(logLevel LogLevel, file string, line int, a ...inte
 
     // 构建日志行
     logLine = logLineHeader + logBody + "\n"
+    if this.logObserver != nil {
+        this.logObserver(logLevel, logLineHeader, logBody)
+    }
     return this.writeLog(logLine)
 }
 
@@ -709,6 +728,9 @@ func (this* SimLogger) logf(logLevel LogLevel, file string, line int, format str
         logLine = logLineHeader + logBody + "\n"
     } else {
         logLine = logLineHeader + logBody
+    }
+    if this.logObserver != nil {
+        this.logObserver(logLevel, logLineHeader, logBody)
     }
     return this.writeLog(logLine)
 }
