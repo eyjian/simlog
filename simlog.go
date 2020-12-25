@@ -675,12 +675,13 @@ func (this* SimLogger) writeLog(logLine string) (int, error) {
 func (this* SimLogger) log(logLevel LogLevel, file string, line int, a ...interface{}) (int, error) {
     var logLine string
     logLineHeader := this.formatLogLineHeader(logLevel, file, line)
+    logBody := fmt.Sprint(a ...)
 
     // 构建日志行
     if atomic.LoadInt32(&this.enableLineFeed) == 1 {
-        logLine = logLineHeader + fmt.Sprint(a ...) + "\n"
+        logLine = logLineHeader + logBody + "\n"
     } else {
-        logLine = logLineHeader + fmt.Sprint(a ...)
+        logLine = logLineHeader + logBody
     }
     return this.writeLog(logLine)
 }
@@ -688,9 +689,10 @@ func (this* SimLogger) log(logLevel LogLevel, file string, line int, a ...interf
 func (this* SimLogger) logln(logLevel LogLevel, file string, line int, a ...interface{}) (int, error) {
     var logLine string
     logLineHeader := this.formatLogLineHeader(logLevel, file, line)
+    logBody := fmt.Sprint(a ...)
 
     // 构建日志行
-    logLine = logLineHeader + fmt.Sprint(a ...) + "\n"
+    logLine = logLineHeader + logBody + "\n"
     return this.writeLog(logLine)
 }
 
@@ -700,12 +702,13 @@ func (this* SimLogger) logln(logLevel LogLevel, file string, line int, a ...inte
 func (this* SimLogger) logf(logLevel LogLevel, file string, line int, format string, a ...interface{}) (int, error) {
     var logLine string
     logLineHeader := this.formatLogLineHeader(logLevel, file, line)
+    logBody := fmt.Sprintf(format, a ...)
 
     // 构建日志行
     if atomic.LoadInt32(&this.enableLineFeed) == 1 {
-        logLine = fmt.Sprintf(logLineHeader+format+"\n", a ...)
+        logLine = logLineHeader + logBody + "\n"
     } else {
-        logLine = fmt.Sprintf(logLineHeader+format, a ...)
+        logLine = logLineHeader + logBody
     }
     return this.writeLog(logLine)
 }
