@@ -20,6 +20,7 @@ import (
     "os"
     "path/filepath"
     "runtime"
+    "strconv"
     "sync/atomic"
     "syscall"
     "time"
@@ -54,6 +55,7 @@ type SimLogger struct {
     logFilename string // 日志文件名（不包含目录部分）
     logDir string // 日志目录（不包含文件名部分）、
     subSuffix string // 日志文件名子后缀：filename.SUBSUFFIX.log，默认为空表示无子后缀
+    tag string // 默认为空，如果不为空，则会作为日志头的一部分，比如可为一个 IP 地址，用来标识日志源于哪
     skip int32 // 源代码所在跳（默认为3，但如果有对SimLogger包装调用，则包装一层应当设置为4，包装两层设置为5，依次类推）
 }
 
@@ -61,6 +63,11 @@ type SimLogger struct {
 // 只在在使用默认的日志文件名进才有效，并且SetSubSuffix必须在Init之前调用才有效
 func (this* SimLogger) SetSubSuffix(subSuffix string) {
     this.subSuffix = subSuffix
+}
+
+// 注意 SetTag 不是协程安全的，应当在使用之前调用
+func (this* SimLogger) SetTag(tag string) {
+    this.tag = tag
 }
 
 // Init应在SimLogger所有其它成员被调用之前调用，
@@ -610,19 +617,20 @@ func (this* SimLogger) formatLogLineHeader(logLevel LogLevel, file string, line 
     if enableRawLog == 1 && logLevel == LL_RAW {
         return "" // 裸日志，不需要日志头
     } else {
-        now := time.Now()
+        var tag string
+        var fileline string
 
-        if file != "" && line > 0 {
-            // 记录源代码的文件名和行号
-            return fmt.Sprintf("[%d-%d-%d %d:%d:%d %06d][%s][%s:%d]",
-                now.Year(), now.Month(), now.Day(), now.Hour(), now.Minute(), now.Second(), now.Nanosecond()/1000,
-                GetLogLevelName(logLevel),
-                filepath.Base(file), line)
-        } else {
-            return fmt.Sprintf("[%d-%d-%d %d:%d:%d %06d][%s]",
-                now.Year(), now.Month(), now.Day(), now.Hour(), now.Minute(), now.Second(), now.Nanosecond()/1000,
-                GetLogLevelName(logLevel), )
+        if this.tag != "" {
+            tag = "[" + this.tag + "]"
         }
+        if file != "" && line > 0 {
+            fileline = "[" + filepath.Base(file) + ":" + strconv.FormatInt(int64(line), 10) + "]"
+        }
+
+        now := time.Now()
+        datetime := fmt.Sprintf("[%d-%d-%d %d:%d:%d %06d]",
+            now.Year(), now.Month(), now.Day(), now.Hour(), now.Minute(), now.Second(), now.Nanosecond()/1000)
+        return tag + fileline + datetime
     }
 }
 
