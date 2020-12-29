@@ -26,6 +26,12 @@ func main() {
     simlogger.EnableLineFeed(true)
     simlogger.Infof("Linefeed enabled")
 
+    simlogger.EnableRawLog(true, false)
+    simlogger.Raw("raw log")
+
+    simlogger.EnableRawLog(true, true)
+    simlogger.Raw("raw log with time")
+
     simlogger.SetLogObserver(logObserver)
     simlogger.Infof("Exit now")
 }

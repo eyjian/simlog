@@ -51,6 +51,7 @@ type SimLogger struct {
     enableTraceLog int32 // 是否开启跟踪日志，不能通过logLevel来控制跟踪日志
     enableLineFeed int32 // 是否自动换行（默认为false，即不自动换行）
     enableRawLog int32 // 是否允许裸日志
+    rawLogWithTime int32 // 裸日志是否带日期时间头
     logLevel int32 // 日志级别（默认为LL_INFO）
     logFileSize int64 // 单个日志文件大小（参考值，实际可能超出，默认为100M）
     logNumBackups int32 // 日志文件备份数（默认为包括当前的在内的共10个）
@@ -89,6 +90,7 @@ func (this* SimLogger) Init() bool {
     this.enableTraceLog = 0
     this.enableLineFeed = 0
     this.enableRawLog = 0
+    this.rawLogWithTime = 0
     this.skip = 3
 
     this.logLevel = int32(LL_INFO)
@@ -136,11 +138,17 @@ func (this* SimLogger) EnableLogCaller(enabled bool) {
     }
 }
 
-func (this* SimLogger) EnableRawLog(enabled bool) {
+// withTime 如果为 true 则会加上日期时间头
+func (this* SimLogger) EnableRawLog(enabled, withTime bool) {
     if enabled {
         atomic.StoreInt32(&this.enableRawLog, 1)
     } else {
         atomic.StoreInt32(&this.enableRawLog, 0)
+    }
+    if withTime {
+        atomic.StoreInt32(&this.rawLogWithTime, 1)
+    } else {
+        atomic.StoreInt32(&this.rawLogWithTime, 0)
     }
 }
 
@@ -626,9 +634,15 @@ func (this* SimLogger) getCaller(skip int32) (string, int) {
 
 // 组装日志行头
 func (this* SimLogger) formatLogLineHeader(logLevel LogLevel, file string, line int) string {
-    enableRawLog := atomic.LoadInt32(&this.enableRawLog)
-    if enableRawLog == 1 && logLevel == LL_RAW {
-        return "" // 裸日志，不需要日志头
+    if logLevel == LL_RAW {
+        enableRawLog := atomic.LoadInt32(&this.enableRawLog)
+        if enableRawLog == 1 {
+            rawLogWithTime := atomic.LoadInt32(&this.rawLogWithTime)
+            if rawLogWithTime == 1 {
+                return getLogTime()
+            }
+        }
+        return ""
     } else {
         var tag string
         var fileline string
@@ -640,9 +654,7 @@ func (this* SimLogger) formatLogLineHeader(logLevel LogLevel, file string, line 
             fileline = "[" + filepath.Base(file) + ":" + strconv.FormatInt(int64(line), 10) + "]"
         }
 
-        now := time.Now()
-        datetime := fmt.Sprintf("[%04d-%02d-%02d %02d:%02d:%02d %06d]",
-            now.Year(), now.Month(), now.Day(), now.Hour(), now.Minute(), now.Second(), now.Nanosecond()/1000)
+        datetime := getLogTime()
         return tag + fileline + datetime
     }
 }
@@ -761,6 +773,13 @@ func (this* SimLogger) rotateLog(cur_filepath string, f *os.File) {
             }
         }
     }
+}
+
+// 返回记录日志的时间，格式为：YYYY-MM-DD hh:mm:ss uuuuuu
+func getLogTime() string {
+    now := time.Now()
+    return fmt.Sprintf("[%04d-%02d-%02d %02d:%02d:%02d %06d]",
+        now.Year(), now.Month(), now.Day(), now.Hour(), now.Minute(), now.Second(), now.Nanosecond()/1000)
 }
 
 /**
