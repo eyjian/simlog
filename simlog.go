@@ -641,7 +641,7 @@ func (this* SimLogger) formatLogLineHeader(logLevel LogLevel, file string, line 
         }
 
         now := time.Now()
-        datetime := fmt.Sprintf("[%d-%d-%d %d:%d:%d %06d]",
+        datetime := fmt.Sprintf("[%04d-%02d-%02d %02d:%02d:%02d %06d]",
             now.Year(), now.Month(), now.Day(), now.Hour(), now.Minute(), now.Second(), now.Nanosecond()/1000)
         return tag + fileline + datetime
     }
