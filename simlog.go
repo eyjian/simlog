@@ -836,7 +836,7 @@ func GetLogDir() string {
 }
 
 // 自动取日志文件名，后缀总是为“.log”，
-// 可指定子后缀（FILENAME.SUBSUFFIX.log），如果不指定则无子后缀（FILENAME.log）
+// 可指定前后缀：SUBPREFIX-filename-SUBSUFFIX.log
 func GetLogFilename(subPrefix, subSuffix string) string {
     logFilename, err := os.Executable()
 
