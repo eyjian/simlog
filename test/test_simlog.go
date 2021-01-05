@@ -11,6 +11,9 @@ import (
 
 func main() {
     var simlogger simlog.SimLogger
+
+    simlogger.SetSubPrefix("PREFIX")
+    simlogger.SetSubSuffix("SUFFIX")
     if !simlogger.Init() {
         fmt.Printf("Init simlog failed\n")
         os.Exit(1)

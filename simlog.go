@@ -57,7 +57,8 @@ type SimLogger struct {
     logNumBackups int32 // 日志文件备份数（默认为包括当前的在内的共10个）
     logFilename string // 日志文件名（不包含目录部分）
     logDir string // 日志目录（不包含文件名部分）、
-    subSuffix string // 日志文件名子后缀：filename.SUBSUFFIX.log，默认为空表示无子后缀
+    subSuffix string // 日志文件名子后缀：filename-SUBSUFFIX.log，默认为空表示无子后缀
+    subPrefix string // 日志文件名子前缀：SUBPREFIX-filename.log，默认为空表示无子后缀
     tag string // 默认为空，如果不为空，则会作为日志头的一部分，比如可为一个 IP 地址，用来标识日志源于哪
     skip int32 // 源代码所在跳（默认为3，但如果有对SimLogger包装调用，则包装一层应当设置为4，包装两层设置为5，依次类推）
     logObserver LogObserver
@@ -70,6 +71,12 @@ type LogObserver func(logLevel LogLevel, logHeader string, logBody string)
 // 只在在使用默认的日志文件名进才有效，并且SetSubSuffix必须在Init之前调用才有效
 func (this* SimLogger) SetSubSuffix(subSuffix string) {
     this.subSuffix = subSuffix
+}
+
+// 设置日志文件名子前缀，
+// 只在在使用默认的日志文件名进才有效，并且SetSubPrefix必须在Init之前调用才有效
+func (this* SimLogger) SetSubPrefix(subPrefix string) {
+    this.subPrefix = subPrefix
 }
 
 // 注意 SetTag 不是协程安全的，应当在使用之前调用
@@ -94,7 +101,7 @@ func (this* SimLogger) Init() bool {
     this.skip = 3
 
     this.logLevel = int32(LL_INFO)
-    this.logFilename = GetLogFilename(this.subSuffix)
+    this.logFilename = GetLogFilename(this.subPrefix, this.subSuffix)
     this.logDir = GetLogDir()
     this.logFileSize = 1024 * 1024 * 100
     this.logNumBackups = 10
@@ -830,19 +837,24 @@ func GetLogDir() string {
 
 // 自动取日志文件名，后缀总是为“.log”，
 // 可指定子后缀（FILENAME.SUBSUFFIX.log），如果不指定则无子后缀（FILENAME.log）
-func GetLogFilename(subSuffix string) string {
+func GetLogFilename(subPrefix, subSuffix string) string {
     logFilename, err := os.Executable()
+
     if err == nil {
         if subSuffix == "" {
-            return fmt.Sprintf("%s.log", filepath.Base(logFilename))
+            logFilename = fmt.Sprintf("%s.log", filepath.Base(logFilename))
         } else {
-            return fmt.Sprintf("%s-%s.log", filepath.Base(logFilename), subSuffix)
+            logFilename = fmt.Sprintf("%s-%s.log", filepath.Base(logFilename), subSuffix)
         }
     } else {
         if subSuffix == "" {
-            return fmt.Sprintf("%s.log", filepath.Base(os.Args[0]))
+            logFilename = fmt.Sprintf("%s.log", filepath.Base(os.Args[0]))
         } else {
-            return fmt.Sprintf("%s-%s.log", filepath.Base(os.Args[0]), subSuffix)
+            logFilename = fmt.Sprintf("%s-%s.log", filepath.Base(os.Args[0]), subSuffix)
         }
     }
+    if subPrefix != "" {
+        logFilename = fmt.Sprintf("%s-%s", subPrefix, logFilename)
+    }
+    return logFilename
 }
