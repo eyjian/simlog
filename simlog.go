@@ -662,7 +662,8 @@ func (this* SimLogger) formatLogLineHeader(logLevel LogLevel, file string, line 
         }
 
         datetime := getLogTime()
-        return tag + fileline + datetime
+        logLevelName := "[" + GetLogLevelName(logLevel) + "]"
+        return datetime + tag + logLevelName + fileline
     }
 }
 
