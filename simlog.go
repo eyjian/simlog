@@ -810,34 +810,51 @@ func (this* SimLogger) putLog(logLine string) (int, error) {
         this.logQueue <- logLine // Panic if logQueue is closed
         return len(logLine), nil
     } else {
-        return this.writeLog(logLine)
+        n, e, _ := this.writeLog(nil, logLine)
+        return n, e
     }
 }
 
-func (this* SimLogger) writeLog(logLine string) (int, error) {
+// 第3个参数指示是否有滚动，如果为true则表示滚动了
+func (this* SimLogger) writeLog(file *os.File, logLine string) (int, error, bool) {
     // 写日志文件
     // 日志写文件
     // 0644 -> rw-r--r--
-    cur_filepath := fmt.Sprintf("%s/%s", this.opts.logDir, this.opts.logFilename)
-    f, err := os.OpenFile(cur_filepath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
-    if err != nil {
-        return 0, err
+    var f *os.File
+    var e error
+
+    if file != nil {
+        // 外部传入
+        f = file
     } else {
-        defer f.Close()
-
-        fi, err := f.Stat()
-        if err != nil {
-            return 0, err
-        } else {
-            logFileSize := fi.Size()
-            n, err := f.WriteString(logLine)
-
-            if logFileSize >= this.opts.logFileSize {
-                this.rotateLog(cur_filepath, f)
-            }
-            return n, err
+        // 本地创建
+        f, e = os.OpenFile(this.getFilepath(), os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
+        if e != nil {
+            return 0, e, false
         }
     }
+    if file == nil {
+        // 本地创建
+        defer f.Close()
+    }
+
+    fi, e := f.Stat()
+    if e != nil {
+        return 0, e, false
+    } else {
+        rotated := false
+        logFileSize := fi.Size()
+        n, e := f.WriteString(logLine)
+
+        if logFileSize >= this.opts.logFileSize {
+            rotated = this.rotateLog(this.getFilepath(), f)
+        }
+        return n, e, rotated
+    }
+}
+
+func (this* SimLogger) getFilepath() string {
+    return fmt.Sprintf("%s/%s", this.opts.logDir, this.opts.logFilename)
 }
 
 func (this* SimLogger) log(logLevel LogLevel, file string, line int, a ...interface{}) (int, error) {
@@ -890,66 +907,98 @@ func (this* SimLogger) logf(logLevel LogLevel, file string, line int, format str
     return this.putLog(logLine)
 }
 
-func (this* SimLogger) rotateLog(cur_filepath string, f *os.File) {
+// 返回true表示滚动了
+func (this* SimLogger) rotateLog(cur_filepath string, f *os.File) bool {
     // 进入滚动逻辑
     // 先加文件锁，进一步判断
     // syscall.LOCK_EX: 排他锁
     err := syscall.Flock(int(f.Fd()), syscall.LOCK_EX) // syscall.LOCK_NB
-    if err == nil {
-        defer syscall.Flock(int(f.Fd()), syscall.LOCK_UN)
-        logFileSize := atomic.LoadInt64(&this.opts.logFileSize)
-        logNumBackups := atomic.LoadInt32(&this.opts.logNumBackups)
-
-        logFileSize, err := GetFileSize(cur_filepath)
-        if err == nil && logFileSize >= logFileSize {
-            // 正式进入滚动逻辑
-            for i := logNumBackups - 1; i > 0; i-- {
-                new_filepath := fmt.Sprintf("%s/%s.%d", this.opts.logDir, this.opts.logFilename, i)
-                old_filepath := fmt.Sprintf("%s/%s.%d", this.opts.logDir, this.opts.logFilename, i-1)
-                os.Rename(old_filepath, new_filepath)
-            }
-            if logNumBackups > 0 {
-                new_filepath := fmt.Sprintf("%s/%s.%d", this.opts.logDir, this.opts.logFilename, 1)
-                os.Rename(cur_filepath, new_filepath)
-            } else {
-                os.Remove(cur_filepath)
-            }
-        }
+    if err != nil {
+        return false
     }
+
+    defer syscall.Flock(int(f.Fd()), syscall.LOCK_UN)
+    logFileSize := atomic.LoadInt64(&this.opts.logFileSize)
+    logNumBackups := atomic.LoadInt32(&this.opts.logNumBackups)
+    logFileSize, err = GetFileSize(cur_filepath)
+    if err != nil || logFileSize < logFileSize {
+        return false
+    }
+    for i := logNumBackups - 1; i > 0; i-- { // 滚动
+        new_filepath := fmt.Sprintf("%s/%s.%d", this.opts.logDir, this.opts.logFilename, i)
+        old_filepath := fmt.Sprintf("%s/%s.%d", this.opts.logDir, this.opts.logFilename, i-1)
+        os.Rename(old_filepath, new_filepath)
+    }
+    if logNumBackups > 0 {
+        new_filepath := fmt.Sprintf("%s/%s.%d", this.opts.logDir, this.opts.logFilename, 1)
+        os.Rename(cur_filepath, new_filepath)
+    } else {
+        os.Remove(cur_filepath)
+    }
+
+    return true
 }
 
 func (this* SimLogger) writeLogCoroutine() {
+    var err error
+    var file *os.File // 日志文件
     exit := false
+    rotated := false // 标记日志是否滚动
     batchNumber := 1
 
-    if this.opts.batchNumber > 0 {
-        batchNumber = int(this.opts.batchNumber)
-    }
-    for {
-        var logLines string
+    file, err = os.OpenFile(this.getFilepath(), os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
+    if err != nil {
+        fmt.Printf("Open or create log file://%s failed: %s\n", this.getFilepath(), err.Error())
+    } else {
+        if this.opts.batchNumber > 0 {
+            batchNumber = int(this.opts.batchNumber)
+        }
+        for {
+            var logLines string
 
-        for i:=0; i<batchNumber; i++ {
-            if len(this.logQueue) == 0 {
-                if logLines != "" {
-                    // 不满处理
-                    this.writeLog(logLines)
-                    logLines = ""
+            for i := 0; i < batchNumber; i++ {
+                if len(this.logQueue) == 0 {
+                    if logLines != "" {
+                        // 不满处理
+                        _, _, rotated = this.writeLog(file, logLines)
+                        logLines = ""
+
+                        if rotated {
+                            file.Close()
+                            file, err = os.OpenFile(this.getFilepath(), os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
+                            if err != nil {
+                                fmt.Printf("Open or create log file://%s failed: %s\n", this.getFilepath(), err.Error())
+                                exit = true
+                                break
+                            }
+                        }
+                    }
+                }
+                logLine, ok := <-this.logQueue // block
+                if !ok {
+                    exit = true
+                    break
+                }
+                logLines = logLines + logLine
+            }
+            // 满处理
+            if len(logLines) > 0 {
+                _, _, rotated = this.writeLog(file, logLines)
+                logLines = ""
+
+                if rotated {
+                    file.Close()
+                    file, err = os.OpenFile(this.getFilepath(), os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
+                    if err != nil {
+                        fmt.Printf("Open or create log file://%s failed: %s\n", this.getFilepath(), err.Error())
+                        exit = true
+                        break
+                    }
                 }
             }
-            logLine, ok := <-this.logQueue // block
-            if !ok {
-                exit = true
+            if exit {
                 break
             }
-            logLines = logLines + logLine
-        }
-        // 满处理
-        if len(logLines) > 0 {
-            this.writeLog(logLines)
-            logLines = ""
-        }
-        if exit {
-            break
         }
     }
     this.logExit <- 1

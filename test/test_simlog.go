@@ -15,6 +15,9 @@ var (
     help             = flag.Bool("h", false, "Display a help message and exit.")
     enableAsyncWrite = flag.Bool("eaw", true, "Enable write log to file asynchronously.")
     enableLineFeed   = flag.Bool("elf", true, "Add '\\n' at the end of the log line automatically.")
+    numLogs          = flag.Int("logs", 5, "Number of logs written by each coroutine.")
+    numCoroutines    = flag.Int("coroutines", 2, "Number of coroutines.")
+    fileSize         = flag.Int("size", 0, "Size of log file.")
 )
 
 func main() {
@@ -38,6 +41,9 @@ func main() {
         os.Exit(1)
     }
 
+    if *fileSize > 0 {
+        simlogger.SetLogFileSize(int64(*fileSize))
+    }
     simlogger.Info("Info level: ", simlogger.EnabledLineFeed(), "\n") // 1
 
     simlogger.EnableLogCaller(true)
@@ -52,16 +58,20 @@ func main() {
     simlogger.EnableRawLog(true, true)
     simlogger.Raw("raw log with time") // 5
 
-    for i:=0; i<5; i++ {
+    for i:=0; i<*numCoroutines; i++ {
         wg.Add(1)
         go func (i int) {
-            simlogger.Infof("%d", i)
+            for j:=0; j<*numLogs; j++ {
+                simlogger.Infof("%030d => %030d", i, j)
+            }
             wg.Done()
         }(i)
-    } // 10
-    wg.Wait()
+    }
+    if *numCoroutines > 0 {
+        wg.Wait()
+    }
 
-    simlogger.Infof("Exit now") // 11
+    simlogger.Infof("Exit now")
     simlogger.Close()
 }
 
