@@ -42,11 +42,14 @@ const (
     LL_RAW LogLevel = 8 // 裸日志
 )
 
-// 使用之前，应先调用SimLogger的Init进行初始化
-// logCaller和printScreen等类型使用int32而不是bool，
-// 是为方便原子修改值，比如实时安全地调整日志级别。
-type SimLogger struct {
+type LogOption interface {
+    apply(*logOptions)
+}
+
+type logOptions struct {
     asyncWrite bool // 是否异步写
+    logQueueSize int32 // 日志队列大小（asyncWrite为true时有效）
+    batchNumber int32 // 异步写时的一次批量数（asyncWrite为true时有效）
     logCaller int32 // 是否记录调用者（在go中取源代码文件名和行号有性能影响，所以默认是关闭的）
     printScreen int32 // 是否屏幕打印（默认为false）
     enableTraceLog int32 // 是否开启跟踪日志，不能通过logLevel来控制跟踪日志
@@ -63,37 +66,152 @@ type SimLogger struct {
     tag string // 默认为空，如果不为空，则会作为日志头的一部分，比如可为一个 IP 地址，用来标识日志源于哪
     skip int32 // 源代码所在跳（默认为3，但如果有对SimLogger包装调用，则包装一层应当设置为4，包装两层设置为5，依次类推）
     logObserver LogObserver
+}
+
+// 使用之前，应先调用SimLogger的Init进行初始化
+// logCaller和printScreen等类型使用int32而不是bool，
+// 是为方便原子修改值，比如实时安全地调整日志级别。
+type SimLogger struct {
+    opts logOptions
     logQueue chan string // 日志队列
-    logExit chan int
+    logExit chan int // 写协程退出信号
 }
 
 // 日志观察者，通过设置 LogObserver 可截获日志，比如将截获的日志写入到 Kafka 等
 type LogObserver func(logLevel LogLevel, logHeader string, logBody string)
 
-// 设置日志文件名子后缀，
-// 只在在使用默认的日志文件名进才有效，并且SetSubSuffix必须在Init之前调用才有效
-func (this* SimLogger) SetSubSuffix(subSuffix string) {
-    this.subSuffix = subSuffix
+func WithLogObserver(logObserver LogObserver) LogOption {
+    return newFuncLogOption(func(o *logOptions) {
+        o.logObserver = logObserver
+    })
 }
 
-// 设置日志文件名子前缀，
-// 只在在使用默认的日志文件名进才有效，并且SetSubPrefix必须在Init之前调用才有效
-func (this* SimLogger) SetSubPrefix(subPrefix string) {
-    this.subPrefix = subPrefix
+func EnableAsyncWrite(enabled bool) LogOption {
+    return newFuncLogOption(func(o *logOptions) {
+        o.asyncWrite = enabled
+    })
 }
 
-// 注意 SetTag 不是协程安全的，应当在使用之前调用
-func (this* SimLogger) SetTag(tag string) {
-    this.tag = tag
+func WithLogQueueSize(logQueueSize int32) LogOption {
+    return newFuncLogOption(func(o *logOptions) {
+        if logQueueSize < 0 {
+            o.logQueueSize = 1
+        } else {
+            o.logQueueSize = logQueueSize
+        }
+    })
 }
 
-// 需在 Init 之后调用，但应在写日志之前调用，非协程安全
-func (this* SimLogger) SetLogObserver(logObserver LogObserver) {
-    this.logObserver = logObserver
+func WithBackupNumber(backupNumber int32) LogOption {
+    return newFuncLogOption(func(o *logOptions) {
+        o.logNumBackups = backupNumber
+    })
+}
+
+func WithTag(tag string) LogOption {
+    return newFuncLogOption(func(o *logOptions) {
+        o.tag = tag
+    })
+}
+
+func WithLogdir(logdir string) LogOption {
+    return newFuncLogOption(func(o *logOptions) {
+        o.logDir = logdir
+    })
+}
+
+func WithFilename(filename string) LogOption {
+    return newFuncLogOption(func(o *logOptions) {
+        o.logFilename = filename
+    })
+}
+
+func WithSubPrefix(subPrefix string) LogOption {
+    return newFuncLogOption(func(o *logOptions) {
+        o.subPrefix = subPrefix
+    })
+}
+
+func WithSubSuffix(subSuffix string) LogOption {
+    return newFuncLogOption(func(o *logOptions) {
+        o.subSuffix = subSuffix
+    })
+}
+
+func WithFilesize(filesize int64) LogOption {
+    return newFuncLogOption(func(o *logOptions) {
+        o.logFileSize = filesize
+    })
+}
+
+func WithBatchNumber(batchNumber int32) LogOption {
+    return newFuncLogOption(func(o *logOptions) {
+        o.batchNumber = batchNumber
+    })
+}
+
+func EnableLogCaller(enabled bool) LogOption {
+    return newFuncLogOption(func(o *logOptions) {
+        if enabled {
+            atomic.StoreInt32(&o.logCaller, 1)
+        } else {
+            atomic.StoreInt32(&o.logCaller, 0)
+        }
+    })
+}
+
+func EnableLineFeed(enabled bool) LogOption {
+    return newFuncLogOption(func(o *logOptions) {
+        if enabled {
+            atomic.StoreInt32(&o.enableLineFeed, 1)
+        } else {
+            atomic.StoreInt32(&o.enableLineFeed, 0)
+        }
+    })
+}
+
+func EnableTraceLog(enabled bool) LogOption {
+    return newFuncLogOption(func(o *logOptions) {
+        if enabled {
+            atomic.StoreInt32(&o.enableTraceLog, 1)
+        } else {
+            atomic.StoreInt32(&o.enableTraceLog, 0)
+        }
+    })
+}
+
+func EnablePrintScreen(enabled bool) LogOption {
+    return newFuncLogOption(func(o *logOptions) {
+        if enabled {
+            atomic.StoreInt32(&o.printScreen, 1)
+        } else {
+            atomic.StoreInt32(&o.printScreen, 0)
+        }
+    })
+}
+
+func EnableRawLog(enabled bool) LogOption {
+    return newFuncLogOption(func(o *logOptions) {
+        if enabled {
+            atomic.StoreInt32(&o.enableRawLog, 1)
+        } else {
+            atomic.StoreInt32(&o.enableRawLog, 0)
+        }
+    })
+}
+
+func EnableRawLogTime(enabled bool) LogOption {
+    return newFuncLogOption(func(o *logOptions) {
+        if enabled {
+            atomic.StoreInt32(&o.rawLogWithTime, 1)
+        } else {
+            atomic.StoreInt32(&o.rawLogWithTime, 0)
+        }
+    })
 }
 
 func (this* SimLogger) Close() {
-    if this.asyncWrite {
+    if this.opts.asyncWrite {
         close(this.logQueue)
         <-this.logExit
         close(this.logExit)
@@ -102,151 +220,137 @@ func (this* SimLogger) Close() {
 
 // Init应在SimLogger所有其它成员被调用之前调用，
 // SetSubSuffix成员除外，SetSubSuffix只有在Init之前调用才有效。
-func (this* SimLogger) Init() bool {
-    this.asyncWrite = true
-    this.logCaller = 0
-    this.printScreen = 0
-    this.enableTraceLog = 0
-    this.enableLineFeed = 0
-    this.enableRawLog = 0
-    this.rawLogWithTime = 0
-    this.skip = 3
+func (this* SimLogger) Init(opts ...LogOption) bool {
+    this.opts = defaultLogOptions()
 
-    this.logLevel = int32(LL_INFO)
-    this.logFilename = GetLogFilename(this.subPrefix, this.subSuffix)
-    this.logDir = GetLogDir()
-    this.logFileSize = 1024 * 1024 * 100
-    this.logNumBackups = 10
-
-    this.logObserver = nil
-    if this.asyncWrite {
+    for _, opt := range opts {
+        opt.apply(&this.opts)
+    }
+    if this.opts.logFilename == "" {
+        this.opts.logFilename = GetLogFilename(this.opts.subPrefix, this.opts.subSuffix)
+    }
+    if this.opts.asyncWrite {
+        logQueueSize := 1
+        if this.opts.logQueueSize > 0 {
+            logQueueSize = int(this.opts.logQueueSize)
+        }
         this.logExit = make(chan int)
-        this.logQueue = make(chan string, 100000)
+        this.logQueue = make(chan string, logQueueSize)
         go this.writeLogCoroutine()
     }
     return true
-}
-
-// 设置日志目录（不包含文件名部分）
-func (this* SimLogger) SetLogDir(logDir string) {
-    this.logDir = logDir
-}
-
-// 设置日志文件名（不包含目录部分）
-func (this* SimLogger) SetLogFilename(logFilename string) {
-    this.logFilename = logFilename
 }
 
 // 调用者所在跳，
 // 如果直接使用SimLogger的写日志函数，则默认值3即可，
 // 否则每包一层skip值就得加一，否则将不能正确显示源代码文件名和行号。
 func (this* SimLogger) SetSkip(skip int32) {
-    atomic.StoreInt32(&this.skip, skip)
+    atomic.StoreInt32(&this.opts.skip, skip)
 }
 
 func (this* SimLogger) GetSkip() int32 {
-    return atomic.LoadInt32(&this.skip)
+    return atomic.LoadInt32(&this.opts.skip)
 }
 
 // 是否开启了记录调用者
 func (this* SimLogger) EnabledLogCaller() bool {
-    return atomic.LoadInt32(&this.logCaller) == 1
+    return atomic.LoadInt32(&this.opts.logCaller) == 1
 }
 
 // enabled为true表示是否记录源代码文件和行号
 func (this* SimLogger) EnableLogCaller(enabled bool) {
     if enabled {
-        atomic.StoreInt32(&this.logCaller, 1)
+        atomic.StoreInt32(&this.opts.logCaller, 1)
     } else {
-        atomic.StoreInt32(&this.logCaller, 0)
+        atomic.StoreInt32(&this.opts.logCaller, 0)
     }
 }
 
 // withTime 如果为 true 则会加上日期时间头
 func (this* SimLogger) EnableRawLog(enabled, withTime bool) {
     if enabled {
-        atomic.StoreInt32(&this.enableRawLog, 1)
+        atomic.StoreInt32(&this.opts.enableRawLog, 1)
     } else {
-        atomic.StoreInt32(&this.enableRawLog, 0)
+        atomic.StoreInt32(&this.opts.enableRawLog, 0)
     }
     if withTime {
-        atomic.StoreInt32(&this.rawLogWithTime, 1)
+        atomic.StoreInt32(&this.opts.rawLogWithTime, 1)
     } else {
-        atomic.StoreInt32(&this.rawLogWithTime, 0)
+        atomic.StoreInt32(&this.opts.rawLogWithTime, 0)
     }
 }
 
 // 是否开启了日志打屏
 func (this* SimLogger) EnabledPrintScreen() bool {
-    return atomic.LoadInt32(&this.printScreen) == 1
+    return atomic.LoadInt32(&this.opts.printScreen) == 1
 }
 
 // enabled为true表示日志打屏
 func (this* SimLogger) EnablePrintScreen(enabled bool) {
     if enabled {
-        atomic.StoreInt32(&this.printScreen, 1)
+        atomic.StoreInt32(&this.opts.printScreen, 1)
     } else {
-        atomic.StoreInt32(&this.printScreen, 0)
+        atomic.StoreInt32(&this.opts.printScreen, 0)
     }
 }
 
 // 是否打开了跟踪日志
 func (this* SimLogger) EnabledTraceLog() bool {
-    return atomic.LoadInt32(&this.enableTraceLog) == 1
+    return atomic.LoadInt32(&this.opts.enableTraceLog) == 1
 }
 
 // enabled为true表示开启跟踪日志，
 // 注意SetLogLevel不能控制跟踪日志的开启。
 func (this* SimLogger) EnableTraceLog(enabled bool) {
     if enabled {
-        atomic.StoreInt32(&this.enableTraceLog, 1)
+        atomic.StoreInt32(&this.opts.enableTraceLog, 1)
     } else {
-        atomic.StoreInt32(&this.enableTraceLog, 0)
+        atomic.StoreInt32(&this.opts.enableTraceLog, 0)
     }
 }
 
 // 是否开启了自动换行
 func (this* SimLogger) EnabledLineFeed() bool {
-    return atomic.LoadInt32(&this.enableLineFeed) == 1
+    return atomic.LoadInt32(&this.opts.enableLineFeed) == 1
 }
 
 // 是否自动换行，enabled为true表示开启自动换行
 func (this* SimLogger) EnableLineFeed(enabled bool) {
     if enabled {
-        atomic.StoreInt32(&this.enableLineFeed, 1)
+        atomic.StoreInt32(&this.opts.enableLineFeed, 1)
     } else {
-        atomic.StoreInt32(&this.enableLineFeed, 0)
+        atomic.StoreInt32(&this.opts.enableLineFeed, 0)
     }
 }
 
 // 取得当前日志级别
 func (this* SimLogger) GetLogLevel() int32 {
-    return atomic.LoadInt32(&this.logLevel)
+    return atomic.LoadInt32(&this.opts.logLevel)
 }
 
 // 设置日志级别
 func (this* SimLogger) SetLogLevel(logLevel LogLevel) {
-    atomic.StoreInt32(&this.logLevel, int32(logLevel))
+    atomic.StoreInt32(&this.opts.logLevel, int32(logLevel))
 }
 
 // 取得单个日志文件大小
 func (this* SimLogger) GetLogFileSize() int64{
-    return atomic.LoadInt64(&this.logFileSize)
+    return atomic.LoadInt64(&this.opts.logFileSize)
 }
 
 // 设置单个日志文件字节数（参考值）
 func (this* SimLogger) SetLogFileSize(logFileSize int64) {
-    atomic.StoreInt64(&this.logFileSize, logFileSize)
+    atomic.StoreInt64(&this.opts.logFileSize, logFileSize)
 }
 
 // 取得日志备份数
 func (this* SimLogger) GetNumBackups() int32 {
-    return atomic.LoadInt32(&this.logNumBackups)
+    return atomic.LoadInt32(&this.opts.logNumBackups)
 }
 
 // 设置日志文件备份数
 func (this* SimLogger) SetNumBackups(logNumBackups int) {
-    atomic.StoreInt32(&this.logNumBackups, int32(logNumBackups))
+    atomic.StoreInt32(&this.opts.logNumBackups, int32(logNumBackups))
 }
 
 // 写裸日志
@@ -266,21 +370,21 @@ func (this* SimLogger) Rawf(format string, a ...interface{}) (int, error) {
 // 写跟踪日志（Trace）
 
 func (this* SimLogger) Trace(a ...interface{}) (int, error) {
-    return this.SkipTrace(this.skip, a ...)
+    return this.SkipTrace(this.opts.skip, a ...)
 }
 
 func (this* SimLogger) Traceln(a ...interface{}) (int, error) {
-    return this.SkipTraceln(this.skip, a ...)
+    return this.SkipTraceln(this.opts.skip, a ...)
 }
 
 func (this* SimLogger) Tracef(format string, a ...interface{}) (int, error) {
-    return this.SkipTracef(this.skip, format, a ...)
+    return this.SkipTracef(this.opts.skip, format, a ...)
 }
 
 // 写跟踪日志（SkipTrace）
 
 func (this* SimLogger) IsEnabledTraceLog() bool {
-    return atomic.LoadInt32(&this.enableTraceLog) == 1
+    return atomic.LoadInt32(&this.opts.enableTraceLog) == 1
 }
 
 func (this* SimLogger) SkipTrace(skip int32, a ...interface{}) (int, error) {
@@ -313,19 +417,19 @@ func (this* SimLogger) SkipTracef(skip int32, format string, a ...interface{}) (
 // 写详细日志（Detail）
 
 func (this* SimLogger) IsEnabledDetailLog() bool {
-    return atomic.LoadInt32(&this.logLevel) >= int32(LL_DETAIL)
+    return atomic.LoadInt32(&this.opts.logLevel) >= int32(LL_DETAIL)
 }
 
 func (this* SimLogger) Detail(a ...interface{}) (int, error) {
-    return this.SkipDetail(this.skip, a ...)
+    return this.SkipDetail(this.opts.skip, a ...)
 }
 
 func (this* SimLogger) Detailln(a ...interface{}) (int, error) {
-    return this.SkipDetailln(this.skip, a ...)
+    return this.SkipDetailln(this.opts.skip, a ...)
 }
 
 func (this* SimLogger) Detailf(format string, a ...interface{}) (int, error) {
-    return this.SkipDetailf(this.skip, format, a ...)
+    return this.SkipDetailf(this.opts.skip, format, a ...)
 }
 
 // 写详细日志（SkipDetail）
@@ -360,19 +464,19 @@ func (this* SimLogger) SkipDetailf(skip int32, format string, a ...interface{}) 
 // 写调试日志（Debug）
 
 func (this* SimLogger) IsEnabledDebugLog() bool {
-    return atomic.LoadInt32(&this.logLevel) >= int32(LL_DEBUG)
+    return atomic.LoadInt32(&this.opts.logLevel) >= int32(LL_DEBUG)
 }
 
 func (this* SimLogger) Debug(a ...interface{}) (int, error) {
-    return this.SkipDebug(this.skip, a ...)
+    return this.SkipDebug(this.opts.skip, a ...)
 }
 
 func (this* SimLogger) Debugln(a ...interface{}) (int, error) {
-    return this.SkipDebugln(this.skip, a ...)
+    return this.SkipDebugln(this.opts.skip, a ...)
 }
 
 func (this* SimLogger) Debugf(format string, a ...interface{}) (int, error) {
-    return this.SkipDebugf(this.skip, format, a ...)
+    return this.SkipDebugf(this.opts.skip, format, a ...)
 }
 
 // 写调试日志（SkipDebug）
@@ -407,19 +511,19 @@ func (this* SimLogger) SkipDebugf(skip int32, format string, a ...interface{}) (
 // 写信息日志（Info）
 
 func (this* SimLogger) IsEnabledInfoLog() bool {
-    return atomic.LoadInt32(&this.logLevel) >= int32(LL_INFO)
+    return atomic.LoadInt32(&this.opts.logLevel) >= int32(LL_INFO)
 }
 
 func (this *SimLogger) Info(a ...interface{}) (int, error) {
-    return this.SkipInfo(this.skip, a ...)
+    return this.SkipInfo(this.opts.skip, a ...)
 }
 
 func (this *SimLogger) Infoln(a ...interface{}) (int, error) {
-    return this.SkipInfoln(this.skip, a ...)
+    return this.SkipInfoln(this.opts.skip, a ...)
 }
 
 func (this* SimLogger) Infof(format string, a ...interface{}) (int, error) {
-    return this.SkipInfof(this.skip, format, a ...)
+    return this.SkipInfof(this.opts.skip, format, a ...)
 }
 
 // 写信息日志（SkipInfo）
@@ -454,19 +558,19 @@ func (this* SimLogger) SkipInfof(skip int32, format string, a ...interface{}) (i
 // 写注意日志（Notice）
 
 func (this* SimLogger) IsEnabledNoticeLog() bool {
-    return atomic.LoadInt32(&this.logLevel) >= int32(LL_NOTICE)
+    return atomic.LoadInt32(&this.opts.logLevel) >= int32(LL_NOTICE)
 }
 
 func (this* SimLogger) Notice(a ...interface{}) (int, error) {
-    return this.SkipNotice(this.skip, a ...)
+    return this.SkipNotice(this.opts.skip, a ...)
 }
 
 func (this* SimLogger) Noticeln(a ...interface{}) (int, error) {
-    return this.SkipNoticeln(this.skip, a ...)
+    return this.SkipNoticeln(this.opts.skip, a ...)
 }
 
 func (this* SimLogger) Noticef(format string, a ...interface{}) (int, error) {
-    return this.SkipNoticef(this.skip, format, a ...)
+    return this.SkipNoticef(this.opts.skip, format, a ...)
 }
 
 // 写注意日志（SkipNotice）
@@ -501,19 +605,19 @@ func (this* SimLogger) SkipNoticef(skip int32, format string, a ...interface{}) 
 // 写警示日志（Warning）
 
 func (this* SimLogger) IsEnabledWarningLog() bool {
-    return atomic.LoadInt32(&this.logLevel) >= int32(LL_WARNING)
+    return atomic.LoadInt32(&this.opts.logLevel) >= int32(LL_WARNING)
 }
 
 func (this *SimLogger) Warning(a ...interface{}) (int, error) {
-    return this.SkipWarning(this.skip, a ...)
+    return this.SkipWarning(this.opts.skip, a ...)
 }
 
 func (this *SimLogger) Warningln(a ...interface{}) (int, error) {
-    return this.SkipWarningln(this.skip, a ...)
+    return this.SkipWarningln(this.opts.skip, a ...)
 }
 
 func (this* SimLogger) Warningf(format string, a ...interface{}) (int, error) {
-    return this.SkipWarningf(this.skip, format, a ...)
+    return this.SkipWarningf(this.opts.skip, format, a ...)
 }
 
 // 写警示日志（SkipWarning）
@@ -548,19 +652,19 @@ func (this* SimLogger) SkipWarningf(skip int32, format string, a ...interface{})
 // 写错误日志（Error）
 
 func (this* SimLogger) IsEnabledErrorLog() bool {
-    return atomic.LoadInt32(&this.logLevel) >= int32(LL_ERROR)
+    return atomic.LoadInt32(&this.opts.logLevel) >= int32(LL_ERROR)
 }
 
 func (this *SimLogger) Error(a ...interface{}) (int, error) {
-    return this.SkipError(this.skip, a ...)
+    return this.SkipError(this.opts.skip, a ...)
 }
 
 func (this *SimLogger) Errorln(a ...interface{}) (int, error) {
-    return this.SkipErrorln(this.skip, a ...)
+    return this.SkipErrorln(this.opts.skip, a ...)
 }
 
 func (this* SimLogger) Errorf(format string, a ...interface{}) (int, error) {
-    return this.SkipErrorf(this.skip, format, a ...)
+    return this.SkipErrorf(this.opts.skip, format, a ...)
 }
 
 // 写错误日志（SkipError）
@@ -596,19 +700,19 @@ func (this* SimLogger) SkipErrorf(skip int32, format string, a ...interface{}) (
 // 注意在调用后进程会退出。
 
 func (this* SimLogger) IsEnabledFatalLog() bool {
-    return atomic.LoadInt32(&this.logLevel) >= int32(LL_FATAL)
+    return atomic.LoadInt32(&this.opts.logLevel) >= int32(LL_FATAL)
 }
 
 func (this *SimLogger) Fatal(a ...interface{}) (int, error) {
-    return this.SkipFatal(this.skip, a ...)
+    return this.SkipFatal(this.opts.skip, a ...)
 }
 
 func (this *SimLogger) Fatalln(a ...interface{}) (int, error) {
-    return this.SkipFatalln(this.skip, a ...)
+    return this.SkipFatalln(this.opts.skip, a ...)
 }
 
 func (this* SimLogger) Fatalf(format string, a ...interface{}) (int, error) {
-    return this.SkipFatalf(this.skip, format, a ...)
+    return this.SkipFatalf(this.opts.skip, format, a ...)
 }
 
 // 写致命错误日志（SkipFatal）
@@ -650,7 +754,7 @@ func (this* SimLogger) SkipFatalf(skip int32, format string, a ...interface{}) (
 func (this* SimLogger) getCaller(skip int32) (string, int) {
     var file string
     var line int = 0
-    if atomic.LoadInt32(&this.logCaller) == 1 {
+    if atomic.LoadInt32(&this.opts.logCaller) == 1 {
         _, file, line, _ = runtime.Caller(int(skip))
     }
     return file, line
@@ -659,9 +763,9 @@ func (this* SimLogger) getCaller(skip int32) (string, int) {
 // 组装日志行头
 func (this* SimLogger) formatLogLineHeader(logLevel LogLevel, file string, line int) string {
     if logLevel == LL_RAW {
-        enableRawLog := atomic.LoadInt32(&this.enableRawLog)
+        enableRawLog := atomic.LoadInt32(&this.opts.enableRawLog)
         if enableRawLog == 1 {
-            rawLogWithTime := atomic.LoadInt32(&this.rawLogWithTime)
+            rawLogWithTime := atomic.LoadInt32(&this.opts.rawLogWithTime)
             if rawLogWithTime == 1 {
                 return getLogTime()
             }
@@ -671,8 +775,8 @@ func (this* SimLogger) formatLogLineHeader(logLevel LogLevel, file string, line 
         var tag string
         var fileline string
 
-        if this.tag != "" {
-            tag = "[" + this.tag + "]"
+        if this.opts.tag != "" {
+            tag = "[" + this.opts.tag + "]"
         }
         if file != "" && line > 0 {
             fileline = "[" + filepath.Base(file) + ":" + strconv.FormatInt(int64(line), 10) + "]"
@@ -699,10 +803,10 @@ func (this* SimLogger) putLog(logLine string) (int, error) {
     }()
 
     // 日志打屏
-    if atomic.LoadInt32(&this.printScreen) == 1 {
+    if atomic.LoadInt32(&this.opts.printScreen) == 1 {
         fmt.Print(logLine)
     }
-    if this.asyncWrite {
+    if this.opts.asyncWrite {
         this.logQueue <- logLine // Panic if logQueue is closed
         return len(logLine), nil
     } else {
@@ -714,7 +818,7 @@ func (this* SimLogger) writeLog(logLine string) (int, error) {
     // 写日志文件
     // 日志写文件
     // 0644 -> rw-r--r--
-    cur_filepath := fmt.Sprintf("%s/%s", this.logDir, this.logFilename)
+    cur_filepath := fmt.Sprintf("%s/%s", this.opts.logDir, this.opts.logFilename)
     f, err := os.OpenFile(cur_filepath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
     if err != nil {
         return 0, err
@@ -728,7 +832,7 @@ func (this* SimLogger) writeLog(logLine string) (int, error) {
             logFileSize := fi.Size()
             n, err := f.WriteString(logLine)
 
-            if logFileSize >= this.logFileSize {
+            if logFileSize >= this.opts.logFileSize {
                 this.rotateLog(cur_filepath, f)
             }
             return n, err
@@ -742,13 +846,13 @@ func (this* SimLogger) log(logLevel LogLevel, file string, line int, a ...interf
     logBody := fmt.Sprint(a ...)
 
     // 构建日志行
-    if atomic.LoadInt32(&this.enableLineFeed) == 1 {
+    if this.EnabledLineFeed() {
         logLine = logLineHeader + logBody + "\n"
     } else {
         logLine = logLineHeader + logBody
     }
-    if this.logObserver != nil {
-        this.logObserver(logLevel, logLineHeader, logBody)
+    if this.opts.logObserver != nil {
+        this.opts.logObserver(logLevel, logLineHeader, logBody)
     }
     return this.putLog(logLine)
 }
@@ -760,8 +864,8 @@ func (this* SimLogger) logln(logLevel LogLevel, file string, line int, a ...inte
 
     // 构建日志行
     logLine = logLineHeader + logBody + "\n"
-    if this.logObserver != nil {
-        this.logObserver(logLevel, logLineHeader, logBody)
+    if this.opts.logObserver != nil {
+        this.opts.logObserver(logLevel, logLineHeader, logBody)
     }
     return this.putLog(logLine)
 }
@@ -775,13 +879,13 @@ func (this* SimLogger) logf(logLevel LogLevel, file string, line int, format str
     logBody := fmt.Sprintf(format, a ...)
 
     // 构建日志行
-    if atomic.LoadInt32(&this.enableLineFeed) == 1 {
+    if this.EnabledLineFeed() {
         logLine = logLineHeader + logBody + "\n"
     } else {
         logLine = logLineHeader + logBody
     }
-    if this.logObserver != nil {
-        this.logObserver(logLevel, logLineHeader, logBody)
+    if this.opts.logObserver != nil {
+        this.opts.logObserver(logLevel, logLineHeader, logBody)
     }
     return this.putLog(logLine)
 }
@@ -793,19 +897,19 @@ func (this* SimLogger) rotateLog(cur_filepath string, f *os.File) {
     err := syscall.Flock(int(f.Fd()), syscall.LOCK_EX) // syscall.LOCK_NB
     if err == nil {
         defer syscall.Flock(int(f.Fd()), syscall.LOCK_UN)
-        logFileSize := atomic.LoadInt64(&this.logFileSize)
-        logNumBackups := atomic.LoadInt32(&this.logNumBackups)
+        logFileSize := atomic.LoadInt64(&this.opts.logFileSize)
+        logNumBackups := atomic.LoadInt32(&this.opts.logNumBackups)
 
         logFileSize, err := GetFileSize(cur_filepath)
         if err == nil && logFileSize >= logFileSize {
             // 正式进入滚动逻辑
             for i := logNumBackups - 1; i > 0; i-- {
-                new_filepath := fmt.Sprintf("%s/%s.%d", this.logDir, this.logFilename, i)
-                old_filepath := fmt.Sprintf("%s/%s.%d", this.logDir, this.logFilename, i-1)
+                new_filepath := fmt.Sprintf("%s/%s.%d", this.opts.logDir, this.opts.logFilename, i)
+                old_filepath := fmt.Sprintf("%s/%s.%d", this.opts.logDir, this.opts.logFilename, i-1)
                 os.Rename(old_filepath, new_filepath)
             }
             if logNumBackups > 0 {
-                new_filepath := fmt.Sprintf("%s/%s.%d", this.logDir, this.logFilename, 1)
+                new_filepath := fmt.Sprintf("%s/%s.%d", this.opts.logDir, this.opts.logFilename, 1)
                 os.Rename(cur_filepath, new_filepath)
             } else {
                 os.Remove(cur_filepath)
@@ -816,11 +920,15 @@ func (this* SimLogger) rotateLog(cur_filepath string, f *os.File) {
 
 func (this* SimLogger) writeLogCoroutine() {
     exit := false
+    batchNumber := 1
 
+    if this.opts.batchNumber > 0 {
+        batchNumber = int(this.opts.batchNumber)
+    }
     for {
         var logLines string
 
-        for i:=0; i<100; i++ {
+        for i:=0; i<batchNumber; i++ {
             if len(this.logQueue) == 0 {
                 if logLines != "" {
                     // 不满处理
@@ -847,16 +955,54 @@ func (this* SimLogger) writeLogCoroutine() {
     this.logExit <- 1
 }
 
+//
+// funcLogOption
+//
+
+func defaultLogOptions() logOptions {
+    return logOptions {
+        asyncWrite: true,
+        logQueueSize: 100000,
+        batchNumber: 100,
+        logCaller: 0,
+        printScreen: 0,
+        enableTraceLog: 0,
+        enableLineFeed: 0,
+        enableRawLog: 0,
+        rawLogWithTime: 0,
+        skip: 3,
+        logLevel: int32(LL_INFO),
+        logDir: GetLogDir(),
+        logFileSize: 1024 * 1024 * 200, // 200 MB
+        logNumBackups: 10,
+        logObserver: nil,
+    }
+}
+
+type funcLogOption struct {
+    f func(*logOptions)
+}
+
+func (fdo *funcLogOption) apply(do *logOptions) {
+    fdo.f(do)
+}
+
+func newFuncLogOption(f func(*logOptions)) *funcLogOption {
+    return &funcLogOption{
+        f: f,
+    }
+}
+
+/**
+ * 以下为全局函数区
+ */
+
 // 返回记录日志的时间，格式为：YYYY-MM-DD hh:mm:ss uuuuuu
 func getLogTime() string {
     now := time.Now()
     return fmt.Sprintf("[%04d-%02d-%02d %02d:%02d:%02d %06d]",
         now.Year(), now.Month(), now.Day(), now.Hour(), now.Minute(), now.Second(), now.Nanosecond()/1000)
 }
-
-/**
- * 以下为全局函数区
- */
 
 // 取得指定文件的文件大小
 func GetFileSize(filepath string) (int64, error) {
