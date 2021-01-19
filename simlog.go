@@ -46,6 +46,7 @@ const (
 // logCaller和printScreen等类型使用int32而不是bool，
 // 是为方便原子修改值，比如实时安全地调整日志级别。
 type SimLogger struct {
+    asyncWrite bool // 是否异步写
     logCaller int32 // 是否记录调用者（在go中取源代码文件名和行号有性能影响，所以默认是关闭的）
     printScreen int32 // 是否屏幕打印（默认为false）
     enableTraceLog int32 // 是否开启跟踪日志，不能通过logLevel来控制跟踪日志
@@ -62,6 +63,8 @@ type SimLogger struct {
     tag string // 默认为空，如果不为空，则会作为日志头的一部分，比如可为一个 IP 地址，用来标识日志源于哪
     skip int32 // 源代码所在跳（默认为3，但如果有对SimLogger包装调用，则包装一层应当设置为4，包装两层设置为5，依次类推）
     logObserver LogObserver
+    logQueue chan string // 日志队列
+    logExit chan int
 }
 
 // 日志观察者，通过设置 LogObserver 可截获日志，比如将截获的日志写入到 Kafka 等
@@ -89,9 +92,18 @@ func (this* SimLogger) SetLogObserver(logObserver LogObserver) {
     this.logObserver = logObserver
 }
 
+func (this* SimLogger) Close() {
+    if this.asyncWrite {
+        close(this.logQueue)
+        <-this.logExit
+        close(this.logExit)
+    }
+}
+
 // Init应在SimLogger所有其它成员被调用之前调用，
 // SetSubSuffix成员除外，SetSubSuffix只有在Init之前调用才有效。
 func (this* SimLogger) Init() bool {
+    this.asyncWrite = true
     this.logCaller = 0
     this.printScreen = 0
     this.enableTraceLog = 0
@@ -107,6 +119,11 @@ func (this* SimLogger) Init() bool {
     this.logNumBackups = 10
 
     this.logObserver = nil
+    if this.asyncWrite {
+        this.logExit = make(chan int)
+        this.logQueue = make(chan string, 100000)
+        go this.writeLogCoroutine()
+    }
     return true
 }
 
@@ -672,15 +689,28 @@ func (this* SimLogger) formatLogLineHeader(logLevel LogLevel, file string, line 
 //   Write(p []byte) (n int, err error)
 // }
 func (this* SimLogger) Write(p []byte) (int, error) {
-    return this.writeLog(string(p))
+    return this.putLog(string(p))
 }
 
-func (this* SimLogger) writeLog(logLine string) (int, error) {
+func (this* SimLogger) putLog(logLine string) (int, error) {
+    defer func() {
+        if err := recover(); err != nil {
+        }
+    }()
+
     // 日志打屏
     if atomic.LoadInt32(&this.printScreen) == 1 {
         fmt.Print(logLine)
     }
+    if this.asyncWrite {
+        this.logQueue <- logLine // Panic if logQueue is closed
+        return len(logLine), nil
+    } else {
+        return this.writeLog(logLine)
+    }
+}
 
+func (this* SimLogger) writeLog(logLine string) (int, error) {
     // 写日志文件
     // 日志写文件
     // 0644 -> rw-r--r--
@@ -697,6 +727,7 @@ func (this* SimLogger) writeLog(logLine string) (int, error) {
         } else {
             logFileSize := fi.Size()
             n, err := f.WriteString(logLine)
+
             if logFileSize >= this.logFileSize {
                 this.rotateLog(cur_filepath, f)
             }
@@ -719,7 +750,7 @@ func (this* SimLogger) log(logLevel LogLevel, file string, line int, a ...interf
     if this.logObserver != nil {
         this.logObserver(logLevel, logLineHeader, logBody)
     }
-    return this.writeLog(logLine)
+    return this.putLog(logLine)
 }
 
 func (this* SimLogger) logln(logLevel LogLevel, file string, line int, a ...interface{}) (int, error) {
@@ -732,7 +763,7 @@ func (this* SimLogger) logln(logLevel LogLevel, file string, line int, a ...inte
     if this.logObserver != nil {
         this.logObserver(logLevel, logLineHeader, logBody)
     }
-    return this.writeLog(logLine)
+    return this.putLog(logLine)
 }
 
 // logLevel: 日志级别
@@ -752,7 +783,7 @@ func (this* SimLogger) logf(logLevel LogLevel, file string, line int, format str
     if this.logObserver != nil {
         this.logObserver(logLevel, logLineHeader, logBody)
     }
-    return this.writeLog(logLine)
+    return this.putLog(logLine)
 }
 
 func (this* SimLogger) rotateLog(cur_filepath string, f *os.File) {
@@ -781,6 +812,39 @@ func (this* SimLogger) rotateLog(cur_filepath string, f *os.File) {
             }
         }
     }
+}
+
+func (this* SimLogger) writeLogCoroutine() {
+    exit := false
+
+    for {
+        var logLines string
+
+        for i:=0; i<100; i++ {
+            if len(this.logQueue) == 0 {
+                if logLines != "" {
+                    // 不满处理
+                    this.writeLog(logLines)
+                    logLines = ""
+                }
+            }
+            logLine, ok := <-this.logQueue // block
+            if !ok {
+                exit = true
+                break
+            }
+            logLines = logLines + logLine
+        }
+        // 满处理
+        if len(logLines) > 0 {
+            this.writeLog(logLines)
+            logLines = ""
+        }
+        if exit {
+            break
+        }
+    }
+    this.logExit <- 1
 }
 
 // 返回记录日志的时间，格式为：YYYY-MM-DD hh:mm:ss uuuuuu
