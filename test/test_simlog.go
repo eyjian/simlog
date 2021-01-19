@@ -18,6 +18,8 @@ var (
     numLogs          = flag.Int("logs", 5, "Number of logs written by each coroutine.")
     numCoroutines    = flag.Int("coroutines", 2, "Number of coroutines.")
     fileSize         = flag.Int("size", 0, "Size of log file.")
+    lockOSThread     = flag.Bool("lockosthread", false, "Lock OS thread.")
+    observer         = flag.Bool("observer", false, "Enable log observer.")
 )
 
 func main() {
@@ -34,6 +36,7 @@ func main() {
         simlog.WithSubPrefix("PREFIX"),
         simlog.WithSubSuffix("SUFFIX"),
         simlog.WithTag("TEST"),
+        simlog.EnableLockOSThread(*lockOSThread),
         simlog.EnableAsyncWrite(*enableAsyncWrite),
         simlog.EnableLineFeed(*enableLineFeed),
         simlog.WithLogObserver(logObserver)) {
@@ -76,5 +79,7 @@ func main() {
 }
 
 func logObserver(logLevel simlog.LogLevel, logHeader string, logBody string) {
-    fmt.Printf("[OBSERVED][%s]%s%s\n", simlog.GetLogLevelName(logLevel), logHeader, logBody)
+    if *observer {
+        fmt.Printf("[OBSERVED][%s]%s%s\n", simlog.GetLogLevelName(logLevel), logHeader, logBody)
+    }
 }

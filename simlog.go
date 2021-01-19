@@ -47,6 +47,7 @@ type LogOption interface {
 }
 
 type logOptions struct {
+    lockOSThread bool // 是否独占线程
     asyncWrite bool // 是否异步写
     logQueueSize int32 // 日志队列大小（asyncWrite为true时有效）
     batchNumber int32 // 异步写时的一次批量数（asyncWrite为true时有效）
@@ -83,6 +84,12 @@ type LogObserver func(logLevel LogLevel, logHeader string, logBody string)
 func WithLogObserver(logObserver LogObserver) LogOption {
     return newFuncLogOption(func(o *logOptions) {
         o.logObserver = logObserver
+    })
+}
+
+func EnableLockOSThread(enabled bool) LogOption {
+    return newFuncLogOption(func(o *logOptions) {
+        o.lockOSThread = enabled
     })
 }
 
@@ -950,6 +957,11 @@ func (this* SimLogger) writeLogCoroutine() {
     if err != nil {
         fmt.Printf("Open or create log file://%s failed: %s\n", this.getFilepath(), err.Error())
     } else {
+        if this.opts.lockOSThread {
+            runtime.LockOSThread()
+            defer runtime.UnlockOSThread()
+        }
+
         if this.opts.batchNumber > 0 {
             batchNumber = int(this.opts.batchNumber)
         }
@@ -1010,6 +1022,7 @@ func (this* SimLogger) writeLogCoroutine() {
 
 func defaultLogOptions() logOptions {
     return logOptions {
+        lockOSThread: false,
         asyncWrite: true,
         logQueueSize: 100000,
         batchNumber: 100,
