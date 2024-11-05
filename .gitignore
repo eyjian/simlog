@@ -1,0 +1,5 @@
+go.sum
+*.exe
+*.log
+*.lock
+test_simlog
