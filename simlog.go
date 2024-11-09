@@ -857,8 +857,7 @@ func (this *SimLogger) writeLog(file *os.File, logLine string) (int, error, bool
         logFileSize := fi.Size()
         n, e := f.WriteString(logLine)
 
-        //if logFileSize >= this.opts.logFileSize {
-        if logFileSize > 100 {
+        if logFileSize >= this.opts.logFileSize {
             rotated = this.rotateLog(this.getFilepath(), f)
         }
         return n, e, rotated
